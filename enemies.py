@@ -120,26 +120,51 @@ class Enemy(pygame.sprite.Sprite):
             return
 
         if self.movement_type == 'fly':
-            # Fly towards target_pos
-            dir_vec = self.target_pos - pygame.Vector2(self.rect.center)
-            if dir_vec.length() > 5:
-                dir_vec = dir_vec.normalize()
+            # Fly towards target_pos with obstacle avoidance
+            diff = self.target_pos - pygame.Vector2(self.rect.center)
+            if diff.length() > 5:
+                dir_vec = diff.normalize()
                 
-                # Move X and check collisions
-                self.rect.x += dir_vec.x * self.speed
-                for sprite in platforms:
-                    if sprite.rect.colliderect(self.rect):
-                        if dir_vec.x > 0: self.rect.right = sprite.rect.left
-                        else: self.rect.left = sprite.rect.right
+                # Predict next position
+                next_x = self.rect.x + dir_vec.x * self.speed
+                next_y = self.rect.y + dir_vec.y * self.speed
                 
-                # Move Y and check collisions
-                self.rect.y += dir_vec.y * self.speed
+                # Check if direct path is blocked
+                test_rect = self.rect.copy()
+                test_rect.x = next_x
+                test_rect.y = next_y
+                
+                blocked = False
                 for sprite in platforms:
-                    if sprite.rect.colliderect(self.rect):
-                        if dir_vec.y > 0: self.rect.bottom = sprite.rect.top
-                        else: self.rect.top = sprite.rect.bottom
+                    if sprite.rect.colliderect(test_rect):
+                        blocked = True
+                        break
+                
+                if blocked:
+                    # Try to find an alternative direction (Up or Down) to bypass
+                    # If blocked horizontally, try moving vertically
+                    alt_dir = pygame.Vector2(0, 1 if dir_vec.y >= 0 else -1)
+                    if abs(dir_vec.x) > abs(dir_vec.y): # Mostly horizontal block
+                        # Shift target slightly up or down to find gap
+                        self.rect.y += self.speed * (1 if self.rect.centery < self.target_pos.y else -1)
+                    else: # Mostly vertical block
+                        self.rect.x += self.speed * (1 if self.rect.centerx < self.target_pos.x else -1)
+                else:
+                    # Path is clear, move normally
+                    self.rect.x = next_x
+                    self.rect.y = next_y
                 
                 self.direction = 1 if dir_vec.x > 0 else -1
+                
+                # Final collision safety to prevent getting inside tiles
+                for sprite in platforms:
+                    if sprite.rect.colliderect(self.rect):
+                        if abs(dir_vec.x) > abs(dir_vec.y):
+                            if dir_vec.x > 0: self.rect.right = sprite.rect.left
+                            else: self.rect.left = sprite.rect.right
+                        else:
+                            if dir_vec.y > 0: self.rect.bottom = sprite.rect.top
+                            else: self.rect.top = sprite.rect.bottom
         else:
             # Ground patrol
             self.rect.x += self.direction * self.speed
