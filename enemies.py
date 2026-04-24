@@ -1,5 +1,7 @@
 import pygame
 import os
+import math
+import random
 
 SCALED_TILE_SIZE = 36
 
@@ -12,24 +14,34 @@ class Enemy(pygame.sprite.Sprite):
         self.damage = stats['damage']
         self.base_speed = stats['speed']
         self.speed = self.base_speed
-        self.resistance = stats['resistance'] # 0.0 to 1.0 (0 = no resistance, 1 = full resistance)
+        self.resistance = stats['resistance']
+        self.movement_type = stats.get('movement_type', 'ground') # 'ground' or 'fly'
         
         self.load_animations()
         self.state = 'walk'
         self.frame_index = 0
-        self.animation_speed = 0.1
+        self.animation_speed = 0.15
         self.image = self.animations['walk'][0]
         
         self.rect = self.image.get_rect(topleft=(x, y))
         self.direction = 1 
         self.vel_y = 0
         self.vel_x = 0
-        self.gravity = 0.8
+        self.gravity = 0.8 if self.movement_type == 'ground' else 0
+        
+        # Guard/AI Logic
+        self.spawn_pos = pygame.Vector2(x, y)
+        self.target_pos = pygame.Vector2(x, y)
+        self.ai_state = 'guard' # 'guard' or 'chase'
+        self.last_player_pos = None
+        self.chase_range = 10 * SCALED_TILE_SIZE
+        self.guard_range = 5 * SCALED_TILE_SIZE
+        self.next_guard_time = 0
         
         # Hit effects
         self.is_hit = False
         self.hit_timer = 0
-        self.hit_duration = 150 # ms
+        self.hit_duration = 150 
         self.hit_flash_duration = 100
 
     def load_animations(self):
@@ -39,7 +51,9 @@ class Enemy(pygame.sprite.Sprite):
             img = pygame.image.load(os.path.join(path, frame_name)).convert_alpha()
             img = pygame.transform.scale(img, (SCALED_TILE_SIZE, SCALED_TILE_SIZE))
             self.animations['walk'].append(img)
-        dead_img = pygame.image.load(os.path.join(path, "dead.png")).convert_alpha()
+        
+        dead_img_name = self.stats.get('dead_frame', "dead.png")
+        dead_img = pygame.image.load(os.path.join(path, dead_img_name)).convert_alpha()
         self.animations['dead'].append(pygame.transform.scale(dead_img, (SCALED_TILE_SIZE, SCALED_TILE_SIZE)))
 
     def animate(self):
@@ -50,7 +64,6 @@ class Enemy(pygame.sprite.Sprite):
         
         image = animation[int(self.frame_index)].copy()
         
-        # Red flash effect
         if self.is_hit and pygame.time.get_ticks() - self.hit_timer < self.hit_flash_duration:
             red_surf = pygame.Surface(image.get_size()).convert_alpha()
             red_surf.fill((255, 0, 0, 180))
@@ -62,8 +75,9 @@ class Enemy(pygame.sprite.Sprite):
             self.image = image
 
     def apply_gravity(self):
-        self.vel_y += self.gravity
-        self.rect.y += self.vel_y
+        if self.movement_type == 'ground':
+            self.vel_y += self.gravity
+            self.rect.y += self.vel_y
 
     def check_collisions(self, platforms):
         for sprite in platforms:
@@ -75,67 +89,103 @@ class Enemy(pygame.sprite.Sprite):
                     self.rect.top = sprite.rect.bottom
                     self.vel_y = 0
 
+    def update_ai(self, player_rect):
+        dist_to_player = pygame.Vector2(self.rect.center).distance_to(pygame.Vector2(player_rect.center))
+        
+        if dist_to_player < self.chase_range:
+            self.ai_state = 'chase'
+            self.target_pos = pygame.Vector2(player_rect.center)
+            self.last_player_pos = pygame.Vector2(player_rect.center)
+        else:
+            if self.ai_state == 'chase':
+                # Just lost player, guard the last seen position
+                self.ai_state = 'guard'
+                self.spawn_pos = pygame.Vector2(self.last_player_pos)
+            
+            # Guarding logic: move to random points around spawn
+            if pygame.time.get_ticks() > self.next_guard_time:
+                angle = random.uniform(0, math.pi * 2)
+                r = random.uniform(0, self.guard_range)
+                self.target_pos = self.spawn_pos + pygame.Vector2(math.cos(angle) * r, math.sin(angle) * r)
+                self.next_guard_time = pygame.time.get_ticks() + random.randint(1000, 3000)
+
     def move(self, platforms):
         if self.is_hit:
-            # During hit, move by vel_x (knockback)
             self.rect.x += self.vel_x
-        else:
-            # Normal patrol
-            self.rect.x += self.direction * self.speed
-        
-        # Check wall collision
-        hit_wall = False
-        for sprite in platforms:
-            if sprite.rect.colliderect(self.rect):
-                hit_wall = True
-                if self.direction > 0 or self.vel_x > 0:
-                    self.rect.right = sprite.rect.left
-                else:
-                    self.rect.left = sprite.rect.right
-                
-                if not self.is_hit:
-                    self.direction *= -1
-                break
-        
-        # Edge detection
-        if not hit_wall and not self.is_hit:
-            look_ahead = self.rect.right if self.direction > 0 else self.rect.left
-            test_rect = pygame.Rect(look_ahead, self.rect.bottom + 1, 2, 2)
-            on_edge = True
+            # Add horizontal collision check during knockback
             for sprite in platforms:
-                if sprite.rect.colliderect(test_rect):
-                    on_edge = False
+                if sprite.rect.colliderect(self.rect):
+                    if self.vel_x > 0: self.rect.right = sprite.rect.left
+                    else: self.rect.left = sprite.rect.right
+            return
+
+        if self.movement_type == 'fly':
+            # Fly towards target_pos
+            dir_vec = self.target_pos - pygame.Vector2(self.rect.center)
+            if dir_vec.length() > 5:
+                dir_vec = dir_vec.normalize()
+                
+                # Move X and check collisions
+                self.rect.x += dir_vec.x * self.speed
+                for sprite in platforms:
+                    if sprite.rect.colliderect(self.rect):
+                        if dir_vec.x > 0: self.rect.right = sprite.rect.left
+                        else: self.rect.left = sprite.rect.right
+                
+                # Move Y and check collisions
+                self.rect.y += dir_vec.y * self.speed
+                for sprite in platforms:
+                    if sprite.rect.colliderect(self.rect):
+                        if dir_vec.y > 0: self.rect.bottom = sprite.rect.top
+                        else: self.rect.top = sprite.rect.bottom
+                
+                self.direction = 1 if dir_vec.x > 0 else -1
+        else:
+            # Ground patrol
+            self.rect.x += self.direction * self.speed
+            hit_wall = False
+            for sprite in platforms:
+                if sprite.rect.colliderect(self.rect):
+                    hit_wall = True
+                    if self.direction > 0: self.rect.right = sprite.rect.left
+                    else: self.rect.left = sprite.rect.right
+                    self.direction *= -1
                     break
-            if on_edge:
-                self.direction *= -1
+            if not hit_wall:
+                look_ahead = self.rect.right if self.direction > 0 else self.rect.left
+                test_rect = pygame.Rect(look_ahead, self.rect.bottom + 1, 2, 2)
+                on_edge = True
+                for sprite in platforms:
+                    if sprite.rect.colliderect(test_rect):
+                        on_edge = False
+                        break
+                if on_edge: self.direction *= -1
 
     def take_damage(self, amount, bullet_direction):
         self.hp -= amount
         self.is_hit = True
         self.hit_timer = pygame.time.get_ticks()
-        
-        # Juicy hit logic: slowdown and knockback jump
-        # Calculated by damage vs resistance
         impact = (amount / 10.0) * (1.0 - self.resistance)
-        
-        # Slowdown: Decrease patrol speed permanently (simple version)
-        self.speed = max(0.5, self.speed - impact * 0.2)
-        
-        # Knockback Jump
+        self.speed = max(0.5, self.speed - impact * 0.1)
         self.vel_x = bullet_direction * (impact * 4)
-        self.vel_y = -3 * impact # Upward pop
+        if self.movement_type == 'fly':
+            self.vel_y = -2 * impact
+        else:
+            self.vel_y = -3 * impact 
         
         if self.hp <= 0:
             self.kill()
 
-    def update(self, platforms):
+    def update(self, platforms, player_rect):
         if self.is_hit:
             if pygame.time.get_ticks() - self.hit_timer > self.hit_duration:
                 self.is_hit = False
                 self.vel_x = 0
 
+        self.update_ai(player_rect)
         self.apply_gravity()
-        self.check_collisions(platforms)
+        if self.movement_type == 'ground':
+            self.check_collisions(platforms)
         self.move(platforms)
         self.animate()
 
@@ -145,9 +195,22 @@ ENEMY_TYPES = {
         'name': 'Insect',
         'asset_path': os.path.join("Assets", "PNG", "Enemies", "Tiles", "Insect"),
         'walk_frames': ["walk1.png", "walk2.png", "walk3.png"],
+        'dead_frame': "dead.png",
         'hp': 40,
         'damage': 1,
         'speed': 1.5,
-        'resistance': 0.2 # Low resistance, gets pushed back easily
+        'resistance': 0.2,
+        'movement_type': 'ground'
+    },
+    'Bee': {
+        'name': 'Bee',
+        'asset_path': os.path.join("Assets", "PNG", "Enemies", "Tiles", "Bee"),
+        'walk_frames': ["fly1.png", "fly2.png", "fly3.png"],
+        'dead_frame': "fly_dead.png",
+        'hp': 60, # 50% more than Insect (40 * 1.5)
+        'damage': 1,
+        'speed': 1.8, # 20% faster than Insect (1.5 * 1.2)
+        'resistance': 0.4, # Slightly harder to push back
+        'movement_type': 'fly'
     }
 }

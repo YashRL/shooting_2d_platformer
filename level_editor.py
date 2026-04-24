@@ -75,6 +75,12 @@ class LevelEditor:
             img = pygame.transform.scale(img, (SCALED_TILE_SIZE, SCALED_TILE_SIZE))
             tiles['CT'] = img
             
+        bee_path = os.path.join("Assets", "PNG", "Enemies", "Tiles", "Bee", "fly1.png")
+        if os.path.exists(bee_path):
+            img = pygame.image.load(bee_path).convert_alpha()
+            img = pygame.transform.scale(img, (SCALED_TILE_SIZE, SCALED_TILE_SIZE))
+            tiles['E_b'] = img
+            
         return tiles
 
     def save_level(self):

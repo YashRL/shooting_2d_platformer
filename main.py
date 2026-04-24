@@ -409,6 +409,7 @@ def load_level(filename, tile_images):
                 if tile_idx_str == 'P': items.add(Item(x, y, tile_images['P'], "Pistol", 'P'))
                 elif tile_idx_str == 'CT': items.add(Item(x, y, tile_images['CT'], "Chicago Typewriter", 'CT'))
                 elif tile_idx_str == 'E_I': enemies.add(Enemy(x, y, ENEMY_TYPES['Insect']))
+                elif tile_idx_str == 'E_b': enemies.add(Enemy(x, y, ENEMY_TYPES['Bee']))
                 else:
                     try:
                         tile_idx = int(tile_idx_str)
@@ -443,7 +444,7 @@ def main():
         # Update
         effect_manager.update()
         player.update(platforms, bullets, enemies, effect_manager)
-        enemies.update(platforms)
+        enemies.update(platforms, player.rect)
         bullets.update()
         
         for bullet in bullets:
