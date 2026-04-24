@@ -41,6 +41,17 @@ WEAPON_STATS = {
         'shoot_type': 'single',
         'fire_rate': 0.3,
         'tile_id': 'P'
+    },
+    'CT': {
+        'name': 'Chicago Typewriter',
+        'description': 'Classic submachine gun. Fast and deadly.',
+        'ammo_capacity': 30,
+        'reload_speed': 2.0,
+        'bullet_speed_multiplier': 1.2,
+        'damage': 15,
+        'shoot_type': 'auto',
+        'fire_rate': 0.1,
+        'tile_id': 'CT'
     }
 }
 
@@ -372,6 +383,13 @@ def load_tiles():
         img = pygame.transform.scale(img, (SCALED_TILE_SIZE, SCALED_TILE_SIZE))
         tiles['P'] = img
 
+    # Load Chicago Typewriter
+    ct_path = os.path.join("Assets", "PNG", "Weapons", "Tiles", "chicago_typwriter.png")
+    if os.path.exists(ct_path):
+        img = pygame.image.load(ct_path).convert_alpha()
+        img = pygame.transform.scale(img, (SCALED_TILE_SIZE, SCALED_TILE_SIZE))
+        tiles['CT'] = img
+
     bullet_path = os.path.join("Assets", "PNG", "Weapons", "Tiles", "bullet.png")
     if os.path.exists(bullet_path):
         img = pygame.image.load(bullet_path).convert_alpha()
@@ -389,6 +407,7 @@ def load_level(filename, tile_images):
                 if not tile_idx_str: continue
                 x, y = c * SCALED_TILE_SIZE, r * SCALED_TILE_SIZE
                 if tile_idx_str == 'P': items.add(Item(x, y, tile_images['P'], "Pistol", 'P'))
+                elif tile_idx_str == 'CT': items.add(Item(x, y, tile_images['CT'], "Chicago Typewriter", 'CT'))
                 elif tile_idx_str == 'E_I': enemies.add(Enemy(x, y, ENEMY_TYPES['Insect']))
                 else:
                     try:

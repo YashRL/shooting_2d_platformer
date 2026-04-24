@@ -69,6 +69,12 @@ class LevelEditor:
             img = pygame.transform.scale(img, (SCALED_TILE_SIZE, SCALED_TILE_SIZE))
             tiles['E_I'] = img
             
+        ct_path = os.path.join("Assets", "PNG", "Weapons", "Tiles", "chicago_typwriter.png")
+        if os.path.exists(ct_path):
+            img = pygame.image.load(ct_path).convert_alpha()
+            img = pygame.transform.scale(img, (SCALED_TILE_SIZE, SCALED_TILE_SIZE))
+            tiles['CT'] = img
+            
         return tiles
 
     def save_level(self):
