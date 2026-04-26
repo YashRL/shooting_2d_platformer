@@ -33,7 +33,7 @@ class LevelEditor:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        pygame.display.set_caption("Gemini Engine Framework - Level Editor")
+        pygame.display.set_caption("TheTreeSentinal Engine by Yash - Level Editor")
         self.clock = pygame.time.Clock()
         
         # Fonts
@@ -62,9 +62,9 @@ class LevelEditor:
         self.new_level_name = "new_level"
         self.new_level_width = "50"
         self.new_level_height = "25"
-        self.active_input = "search" # "search", "name", "width", "height"
+        self.active_input = "search"
         
-        # Caret (Cursor) Logic
+        # Caret Logic
         self.caret_visible = True
         self.caret_timer = pygame.time.get_ticks()
         self.caret_index = 0
@@ -72,10 +72,12 @@ class LevelEditor:
         # Editing State
         self.categories = ["Tiles", "Players", "Enemies", "Weapons", "Props"]
         self.selected_category = "Tiles"
-        self.selected_item = "1"
-        self.current_tool = "stamp" # "stamp" or "erase"
+        self.selected_item = None # START WITH NOTHING SELECTED
+        self.current_tool = "stamp"
         self.undo_stack = []
         self.max_undo = 50
+        
+        self.mouse_debounce = False # Prevents click leakage between states
         
         self.menu_scroll_y = 0
         self.edit_scroll_y = 0
@@ -92,14 +94,18 @@ class LevelEditor:
             self.levels_list = [f for f in os.listdir(self.levels_dir) if f.endswith('.csv')]
         else: self.levels_list = []
 
+    def enter_editing_state(self):
+        self.state = STATE_EDITING
+        self.mouse_debounce = True # Safety: Mouse must be released before first action
+        self.selected_item = None # Safety: User must pick an item
+
     def save_state_for_undo(self):
         state = [row[:] for row in self.grid]
         self.undo_stack.append(state)
         if len(self.undo_stack) > self.max_undo: self.undo_stack.pop(0)
 
     def undo(self):
-        if self.undo_stack:
-            self.grid = self.undo_stack.pop()
+        if self.undo_stack: self.grid = self.undo_stack.pop()
 
     def zoom(self, amount, center_pos=None):
         old_zoom = self.zoom_level
@@ -135,40 +141,27 @@ class LevelEditor:
         for i in range(len(text) + 1):
             w, _ = self.font.size(text[:i])
             diff = abs(relative_x - w)
-            if diff < min_diff:
-                min_diff = diff
-                best_index = i
+            if diff < min_diff: min_diff, best_index = diff, i
         return best_index
-
-    def create_new_level(self):
-        try:
-            w, h = int(self.new_level_width), int(self.new_level_height)
-            name = self.new_level_name if self.new_level_name.endswith('.csv') else self.new_level_name + ".csv"
-            self.cols, self.rows = w, h
-            self.grid = [['-1' for _ in range(w)] for _ in range(h)]
-            self.current_level_path = os.path.join(self.levels_dir, name)
-            self.save_scene(self.current_level_path)
-            self.state = STATE_EDITING
-        except: pass
 
     def load_level_from_menu(self, filename):
         path = os.path.join(self.levels_dir, filename)
         self.load_scene(path)
         self.current_level_path = path
-        self.state = STATE_EDITING
+        self.enter_editing_state()
 
     def save_scene(self, path):
         with open(path, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerows(self.grid)
+        print(f"Saved: {path}")
 
     def load_scene(self, path):
         if not os.path.exists(path): return
         with open(path, "r") as f:
             reader = csv.reader(f)
             self.grid = list(reader)
-            if self.grid:
-                self.rows, self.cols = len(self.grid), len(self.grid[0])
+            if self.grid: self.rows, self.cols = len(self.grid), len(self.grid[0])
 
     def draw_grid(self):
         for r in range(self.rows):
@@ -251,7 +244,7 @@ class LevelEditor:
         self.screen.blit(self.small_font.render("MENU", True, WHITE), self.small_font.render("MENU", True, WHITE).get_rect(center=btn_menu.center))
         mx, my = pygame.mouse.get_pos()
         m_clicked = pygame.mouse.get_pressed()[0]
-        if m_clicked:
+        if m_clicked and not self.mouse_debounce:
             if btn_save.collidepoint(mx, my): self.save_scene(self.current_level_path); pygame.time.wait(200)
             if btn_menu.collidepoint(mx, my): self.state = STATE_MENU; self.refresh_levels(); pygame.time.wait(200)
         tool_y = 95
@@ -261,7 +254,7 @@ class LevelEditor:
         pygame.draw.rect(self.screen, ACCENT if self.current_tool == "erase" else LIGHT_GRAY, erase_btn, border_radius=5)
         self.screen.blit(self.small_font.render("STAMP", True, WHITE), self.small_font.render("STAMP", True, WHITE).get_rect(center=stamp_btn.center))
         self.screen.blit(self.small_font.render("ERASE", True, WHITE), self.small_font.render("ERASE", True, WHITE).get_rect(center=erase_btn.center))
-        if m_clicked:
+        if m_clicked and not self.mouse_debounce:
             if stamp_btn.collidepoint(mx, my): self.current_tool = "stamp"
             if erase_btn.collidepoint(mx, my): self.current_tool = "erase"
         zoom_y = 135
@@ -269,7 +262,7 @@ class LevelEditor:
         plus_rect, minus_rect, reset_rect = pygame.Rect(20, zoom_y+20, 30, 25), pygame.Rect(60, zoom_y+20, 30, 25), pygame.Rect(100, zoom_y+20, 80, 25)
         pygame.draw.rect(self.screen, LIGHT_GRAY, plus_rect, border_radius=5); pygame.draw.rect(self.screen, LIGHT_GRAY, minus_rect, border_radius=5); pygame.draw.rect(self.screen, LIGHT_GRAY, reset_rect, border_radius=5)
         self.screen.blit(self.font.render("+", True, WHITE), self.font.render("+", True, WHITE).get_rect(center=plus_rect.center)); self.screen.blit(self.font.render("-", True, WHITE), self.font.render("-", True, WHITE).get_rect(center=minus_rect.center)); self.screen.blit(self.small_font.render("RESET", True, WHITE), self.small_font.render("RESET", True, WHITE).get_rect(center=reset_rect.center))
-        if m_clicked:
+        if m_clicked and not self.mouse_debounce:
             if plus_rect.collidepoint(mx, my): self.zoom(0.02)
             if minus_rect.collidepoint(mx, my): self.zoom(-0.02)
             if reset_rect.collidepoint(mx, my): self.recenter()
@@ -280,7 +273,7 @@ class LevelEditor:
             pygame.draw.rect(self.screen, color, rect, border_radius=5)
             text_surf = self.small_font.render(cat, True, BLACK if self.selected_category == cat else WHITE)
             self.screen.blit(text_surf, text_surf.get_rect(center=rect.center))
-            if rect.collidepoint(mx, my) and m_clicked: self.selected_category, self.edit_scroll_y = cat, 0
+            if rect.collidepoint(mx, my) and m_clicked and not self.mouse_debounce: self.selected_category, self.edit_scroll_y = cat, 0
         item_start_y, items = 380, [k for k, v in self.resources.registry.items() if v['category'] == self.selected_category]
         cols, padding = 4, 10
         box_size = (UI_WIDTH - (cols + 1) * padding) // cols
@@ -291,22 +284,25 @@ class LevelEditor:
             rect = pygame.Rect(x, y, box_size, box_size)
             if self.selected_item == item_id: pygame.draw.rect(self.screen, HIGHLIGHT, rect.inflate(6, 6), 2, border_radius=5)
             self.screen.blit(pygame.transform.scale(self.resources.get_image(item_id), (box_size, box_size)), (x, y))
-            if rect.collidepoint(mx, my) and m_clicked: self.selected_item = item_id
+            if rect.collidepoint(mx, my) and m_clicked and not self.mouse_debounce: self.selected_item = item_id
         play_rect = pygame.Rect(20, SCREEN_HEIGHT - 50, UI_WIDTH - 40, 35)
         pygame.draw.rect(self.screen, (0, 150, 0), play_rect, border_radius=8)
         self.screen.blit(self.font.render("PLAY SCENE", True, WHITE), self.font.render("PLAY SCENE", True, WHITE).get_rect(center=play_rect.center))
-        if play_rect.collidepoint(mx, my) and m_clicked:
+        if play_rect.collidepoint(mx, my) and m_clicked and not self.mouse_debounce:
             self.save_scene(self.current_level_path); subprocess.Popen([sys.executable, "main.py", self.current_level_path]); pygame.time.wait(200)
 
     def handle_editing_input(self):
         mx, my = pygame.mouse.get_pos()
         m_keys = pygame.mouse.get_pressed()
+        if not any(m_keys): self.mouse_debounce = False
+        if self.mouse_debounce: return
         if mx > UI_WIDTH:
             gx, gy = int((mx - self.camera_offset.x) // self.current_tile_size), int((my - self.camera_offset.y) // self.current_tile_size)
             if 0 <= gx < self.cols and 0 <= gy < self.rows:
                 if m_keys[0]:
                     target = self.selected_item if self.current_tool == "stamp" else "-1"
-                    if self.grid[gy][gx] != target: self.save_state_for_undo(); self.grid[gy][gx] = target
+                    if target is not None:
+                        if self.grid[gy][gx] != target: self.save_state_for_undo(); self.grid[gy][gx] = target
                 if m_keys[2]:
                     if self.grid[gy][gx] != "-1": self.save_state_for_undo(); self.grid[gy][gx] = "-1"
         if m_keys[1]:
@@ -332,7 +328,12 @@ class LevelEditor:
                     elif self.state == STATE_CREATE:
                         for i, (label, val, key) in enumerate([("name", self.new_level_name, "name"), ("width", self.new_level_width, "width"), ("height", self.new_level_height, "height")]):
                             if pygame.Rect(SCREEN_WIDTH//2-150, 250+i*120+40, 300, 45).collidepoint(mx, my): self.active_input, self.caret_index = key, self.get_caret_from_mouse(mx, SCREEN_WIDTH//2-150, val)
-                        if pygame.Rect(SCREEN_WIDTH//2-210, 650, 200, 50).collidepoint(mx, my): self.create_new_level()
+                        if pygame.Rect(SCREEN_WIDTH//2-210, 650, 200, 50).collidepoint(mx, my):
+                            try:
+                                w, h = int(self.new_level_width), int(self.new_level_height)
+                                name = self.new_level_name if self.new_level_name.endswith('.csv') else self.new_level_name + ".csv"
+                                self.cols, self.rows = w, h; self.grid = [['-1' for _ in range(w)] for _ in range(h)]; self.current_level_path = os.path.join(self.levels_dir, name); self.save_scene(self.current_level_path); self.enter_editing_state()
+                            except: pass
                         if pygame.Rect(SCREEN_WIDTH//2+10, 650, 200, 50).collidepoint(mx, my): self.state = STATE_MENU
                 if event.type == pygame.KEYDOWN:
                     mods = pygame.key.get_mods()
