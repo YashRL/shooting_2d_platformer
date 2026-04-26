@@ -17,8 +17,14 @@ class FoxPlayer(PhysicsEntity):
         self.jump_force = -math.sqrt(2 * self.gravity * (3.5 * self.tile_size))
         
         # Weapons System
-        self.weapon_slots = [None, None] # Holds weapon objects
+        self.weapon_slots = [None, None]
         self.active_slot = 0
+        
+        # Hit State
+        self.is_hit = False
+        self.hit_timer = 0
+        self.hit_duration = 500 # Invincibility frames
+        
         self.jump_pressed_last_frame = False
         self.is_jumping = False
         self.interact_pressed = False
@@ -38,11 +44,35 @@ class FoxPlayer(PhysicsEntity):
         frames['jump'].append(pygame.transform.scale(img, (self.tile_size, self.tile_size)))
         self.animations = AnimationManager(frames)
 
-    def handle_input(self, effect_manager, items_group):
-        keys = pygame.key.get_pressed()
-        jump_input = keys[pygame.K_w] # Only W for jump
+    def take_damage(self, amount, source_rect):
+        if self.is_hit: return
         
-        # Movement
+        self.hp -= amount
+        self.is_hit = True
+        self.hit_timer = pygame.time.get_ticks()
+        
+        # Knockback
+        knockback_force = 8
+        if source_rect.centerx < self.rect.centerx:
+            self.vel.x = knockback_force
+        else:
+            self.vel.x = -knockback_force
+        self.vel.y = -6
+        self.on_ground = False
+        
+        if self.hp <= 0:
+            # Simple Respawn
+            self.hp = self.max_hp
+            self.pos = pygame.Vector2(100, 100)
+            self.rect.topleft = (100, 100)
+
+    def handle_input(self, effect_manager, items_group):
+        if self.is_hit and pygame.time.get_ticks() - self.hit_timer < 200: 
+            return # Locked out of input during initial knockback
+
+        keys = pygame.key.get_pressed()
+        jump_input = keys[pygame.K_w]
+        
         self.vel.x = 0
         if keys[pygame.K_a]:
             self.vel.x = -self.speed
@@ -51,7 +81,6 @@ class FoxPlayer(PhysicsEntity):
             self.vel.x = self.speed
             self.animations.flip = False
 
-        # Jump
         if jump_input:
             if self.on_ground and not self.jump_pressed_last_frame:
                 self.vel.y = self.jump_force
@@ -61,61 +90,45 @@ class FoxPlayer(PhysicsEntity):
         else: self.is_jumping = False
         self.jump_pressed_last_frame = jump_input
 
-        # Weapon Switching
+        # Weapons... (1, 2, R, Space, E)
         if keys[pygame.K_1]: self.active_slot = 0
         if keys[pygame.K_2]: self.active_slot = 1
-        
-        # Reload
         if keys[pygame.K_r]:
-            weapon = self.weapon_slots[self.active_slot]
-            if weapon: weapon.start_reload()
-            
-        # Combat
+            w = self.weapon_slots[self.active_slot]
+            if w: w.start_reload()
+        
         weapon = self.weapon_slots[self.active_slot]
         if weapon:
-            # Spacebar or Mouse for shooting
             shoot_input = keys[pygame.K_SPACE] or pygame.mouse.get_pressed()[0]
             if shoot_input:
                 if weapon.shoot_type == 'auto' or not getattr(self, 'shoot_pressed_last_frame', False):
                     self.shoot(weapon, effect_manager)
                 self.shoot_pressed_last_frame = True
-            else:
-                self.shoot_pressed_last_frame = False
+            else: self.shoot_pressed_last_frame = False
 
-        # Collection (E Key)
         if keys[pygame.K_e]:
             if not self.interact_pressed:
                 self.check_pickup(items_group)
                 self.interact_pressed = True
-        else:
-            self.interact_pressed = False
+        else: self.interact_pressed = False
 
     def shoot(self, weapon, effect_manager):
         if weapon.can_shoot():
             direction = -1 if self.animations.flip else 1
-            # Calculate muzzle position
             offset_x = -20 if self.animations.flip else 20
             muzzle_x = self.rect.centerx + offset_x
             muzzle_y = self.rect.centery + 5
-            
-            # Trigger Juice
             effect_manager.trigger_shake(100, 4)
             effect_manager.create_muzzle_flash(muzzle_x, muzzle_y, direction)
             effect_manager.spawn_bullet(muzzle_x, muzzle_y, direction, weapon.bullet_speed, weapon.damage)
-            
             weapon.current_ammo -= 1
             weapon.last_fire_time = pygame.time.get_ticks()
 
     def check_pickup(self, items_group):
-        # We check collisions with items in the world
         hits = pygame.sprite.spritecollide(self, items_group, False)
         for item in hits:
-            # Add to first empty slot or replace current
             for i in range(2):
                 if self.weapon_slots[i] is None:
-                    # 'item' is just a sprite in the world with 'item_id'
-                    # We need to spawn the actual weapon logic
-                    # This is why the Registry + Spawn system is good
                     from engine.loader import ResourceManager
                     rm = ResourceManager() 
                     weapon_logic = rm.spawn(item.item_id, 0, 0)
@@ -125,38 +138,35 @@ class FoxPlayer(PhysicsEntity):
                         return
 
     def update(self, platforms, effect_manager=None, items_group=None, **kwargs):
+        if self.is_hit:
+            if pygame.time.get_ticks() - self.hit_timer > self.hit_duration:
+                self.is_hit = False
+                
         self.handle_input(effect_manager, items_group)
         self.apply_physics(platforms)
         
-        # Update current weapon
         weapon = self.weapon_slots[self.active_slot]
-        if weapon:
-            weapon.update()
+        if weapon: weapon.update()
             
-        # Animation
         if not self.on_ground: self.animations.change_state('jump')
         elif self.vel.x != 0: self.animations.change_state('walk')
         else: self.animations.change_state('idle')
+        
+        self.animations.flash_red = self.is_hit
         self.animations.update()
         self.image = self.animations.get_current_frame()
 
     def draw(self, screen, camera):
-        # Draw Player
         screen.blit(self.image, camera.apply(self))
-        
-        # Draw Active Weapon on Player
         weapon = self.weapon_slots[self.active_slot]
         if weapon:
             w_img = weapon.image
             if self.animations.flip: w_img = pygame.transform.flip(w_img, True, False)
-            
             offset_x = -10 if self.animations.flip else 10
             w_rect = w_img.get_rect(center=self.rect.center)
             w_rect.x += offset_x
             w_rect.y += 5
             screen.blit(w_img, camera.apply_rect(w_rect))
-            
-            # Reload Bar
             if weapon.is_reloading:
                 elapsed = (pygame.time.get_ticks() - weapon.reload_start_time) / 1000.0
                 progress = min(1.0, elapsed / weapon.reload_speed)
@@ -166,14 +176,9 @@ class FoxPlayer(PhysicsEntity):
 
     def draw_hud(self, screen):
         font = pygame.font.SysFont("Arial", 20, bold=True)
-        # HP
         hp_text = font.render(f"HP: {self.hp}", True, (255, 50, 50))
         screen.blit(hp_text, (20, 20))
-        
-        # Weapon / Ammo
         weapon = self.weapon_slots[self.active_slot]
         if weapon:
             ammo_text = font.render(f"AMMO: {weapon.current_ammo} / {weapon.ammo_capacity}", True, (255, 255, 255))
             screen.blit(ammo_text, (20, 50))
-            name_text = font.render(f"[{weapon.properties.get('name')}]", True, (200, 200, 200))
-            screen.blit(name_text, (20, 75))

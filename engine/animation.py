@@ -10,6 +10,7 @@ class AnimationManager:
         self.frame_index = 0
         self.animation_speed = animation_speed
         self.flip = False
+        self.flash_red = False
 
     def change_state(self, new_state):
         if self.state != new_state:
@@ -28,7 +29,13 @@ class AnimationManager:
         if not self.state or self.state not in self.animations:
             return None
             
-        frame = self.animations[self.state][int(self.frame_index)]
+        frame = self.animations[self.state][int(self.frame_index)].copy()
+        
+        if self.flash_red:
+            red_surf = pygame.Surface(frame.get_size()).convert_alpha()
+            red_surf.fill((255, 0, 0, 150))
+            frame.blit(red_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
         if self.flip:
             return pygame.transform.flip(frame, True, False)
         return frame

@@ -23,20 +23,32 @@ class InsectEnemy(BaseEnemy):
         # Physics (handles gravity & walls)
         self.apply_physics(platforms)
         
-        # Edge Detection
+        # Edge Detection (No-fall AI)
         if self.on_ground:
-            look_ahead = self.rect.right if self.direction > 0 else self.rect.left
+            # Look slightly ahead of the feet
+            look_ahead = self.rect.right + 2 if self.direction > 0 else self.rect.left - 2
             test_rect = pygame.Rect(look_ahead, self.rect.bottom + 1, 2, 2)
+            
             on_edge = True
             for sprite in platforms:
                 if sprite.rect.colliderect(test_rect):
                     on_edge = False
                     break
-            if on_edge: self.direction *= -1
             
-        # Wall turn
-        if self.vel.x == 0: # Hit a wall
-            self.direction *= -1
+            if on_edge:
+                self.direction *= -1
+                self.vel.x = 0
+            
+        # Wall turn logic
+        # If we hit a wall, PhysicsEntity sets vel.x to 0
+        # Check if we were trying to move but got stopped
+        test_x = self.rect.x + self.direction
+        test_rect = self.rect.copy()
+        test_rect.x = test_x
+        for sprite in platforms:
+            if sprite.rect.colliderect(test_rect):
+                self.direction *= -1
+                break
 
-        # Super update handles animation
+        # Animation handling
         super().update(platforms, **kwargs)

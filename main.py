@@ -106,10 +106,16 @@ class Game:
                 hits = pygame.sprite.spritecollide(bullet, self.entities, False)
                 for enemy in hits:
                     if hasattr(enemy, 'take_damage'):
-                        enemy.take_damage(bullet.damage)
+                        enemy.take_damage(bullet.damage, bullet.direction)
                     bullet.kill()
                 if pygame.sprite.spritecollideany(bullet, self.platforms):
                     bullet.kill()
+
+            # Player-Enemy Collisions
+            enemy_hits = pygame.sprite.spritecollide(self.player, self.entities, False)
+            for enemy in enemy_hits:
+                if hasattr(enemy, 'damage'):
+                    self.player.take_damage(enemy.damage, enemy.rect)
 
             self.camera.update(self.player, self.effect_manager.get_shake_offset())
 
