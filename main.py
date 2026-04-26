@@ -50,6 +50,7 @@ class Game:
         self.effect_manager = EffectManager()
         
         self.platforms = pygame.sprite.Group()
+        self.decors = pygame.sprite.Group() # New group for props
         self.entities = pygame.sprite.Group()
         self.items = pygame.sprite.Group()
         self.player = None
@@ -78,8 +79,9 @@ class Game:
                 
                 if info['type'] == 'static':
                     self.platforms.add(Tile(x, y, self.resources.get_image(item_id)))
+                elif info['type'] == 'decor':
+                    self.decors.add(Tile(x, y, self.resources.get_image(item_id)))
                 elif info['category'] == 'Weapons':
-                    # Items in the world to be picked up
                     self.items.add(WorldItem(x, y, item_id, self.resources.get_image(item_id)))
                 elif info['type'] == 'entity':
                     entity = self.resources.spawn(item_id, x, y)
@@ -121,7 +123,12 @@ class Game:
 
             # Draw
             self.screen.fill((135, 206, 235))
+            
+            # 1. Draw decors (background props)
+            for sprite in self.decors: self.screen.blit(sprite.image, self.camera.apply(sprite))
+            # 2. Draw platforms (solid tiles)
             for sprite in self.platforms: self.screen.blit(sprite.image, self.camera.apply(sprite))
+            
             for item in self.items: self.screen.blit(item.image, self.camera.apply(item))
             for entity in self.entities: self.screen.blit(entity.image, self.camera.apply(entity))
             

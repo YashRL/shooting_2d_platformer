@@ -5,8 +5,18 @@
   },
   "categories": ["Tiles", "Players", "Enemies", "Weapons", "Props"],
   "items": {
-    "1": { "category": "Tiles", "name": "Grass", "asset": "Assets/PNG/Tiles/Tiles/1.png", "type": "static" },
-    "48": { "category": "Tiles", "name": "Stone", "asset": "Assets/PNG/Tiles/Tiles/48.png", "type": "static" },
+    "1": {
+      "category": "Purple Grass",
+      "name": "Grass",
+      "asset": "Assets/PNG/Tiles/Tiles/Purple_Grass/1.png",
+      "type": "static"
+    },
+    "48": {
+      "category": "Concrete",
+      "name": "Stone",
+      "asset": "Assets/PNG/Tiles/Tiles/Concrete_platform/48.png",
+      "type": "static"
+    },
     "START": {
       "category": "Players",
       "name": "Fox Character",
@@ -22,7 +32,7 @@
       "type": "entity",
       "module": "modules.enemies.insect",
       "class": "InsectEnemy",
-      "properties": { "hp": 40, "speed": 1.5, "damage": 1 }
+      "properties": { "hp": 40, "speed": 1.5, "damage": 1, "resistance": 0.2 }
     },
     "E_b": {
       "category": "Enemies",
@@ -31,7 +41,7 @@
       "type": "entity",
       "module": "modules.enemies.bee",
       "class": "BeeEnemy",
-      "properties": { "hp": 60, "speed": 1.8, "damage": 1 }
+      "properties": { "hp": 60, "speed": 1.8, "damage": 1, "resistance": 0.4 }
     },
     "P": {
       "category": "Weapons",

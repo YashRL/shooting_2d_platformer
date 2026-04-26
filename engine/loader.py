@@ -11,12 +11,43 @@ class ResourceManager:
         self.load_registry()
 
     def load_registry(self):
+        # 1. Load explicit entities from JSON (Players, Enemies, Weapons)
         with open('data/registry.json', 'r') as f:
             data = json.load(f)
             self.registry = data['items']
             self.settings = data.get('settings', {})
 
-        # Pre-load images
+        # 2. Auto-discover organized tiles and props
+        base_tiles_path = os.path.join("Assets", "PNG", "Tiles", "Tiles")
+        
+        # Mapping folders to Categories and Physics Types
+        groups = {
+            'Concrete_platform': ('Concrete', 'static'),
+            'Foundation_tiles': ('Foundation', 'static'),
+            'Green_Grass': ('Green Grass', 'static'),
+            'Purple_Grass': ('Purple Grass', 'static'),
+            'Props': ('Props', 'decor')
+        }
+
+        for folder, (cat, p_type) in groups.items():
+            path = os.path.join(base_tiles_path, folder)
+            if os.path.exists(path):
+                for f in os.listdir(path):
+                    if f.endswith('.png'):
+                        item_id = f.split('.')[0]
+                        # Use a prefix to avoid ID collisions if necessary, or just the number
+                        # To keep CSV simple, let's use the number. 
+                        # NOTE: If numbers overlap between folders, we should use 'Folder_ID'
+                        full_id = f"{folder}_{item_id}" 
+                        
+                        self.registry[full_id] = {
+                            'category': cat,
+                            'name': f"{cat} {item_id}",
+                            'asset': os.path.join(path, f),
+                            'type': p_type
+                        }
+
+        # 3. Pre-load images
         for item_id, info in self.registry.items():
             try:
                 img = pygame.image.load(info['asset']).convert_alpha()
@@ -24,38 +55,27 @@ class ResourceManager:
                 self.images[item_id] = img
             except Exception as e:
                 print(f"Error loading asset {info['asset']}: {e}")
-                # Fallback placeholder
                 surf = pygame.Surface((self.tile_size, self.tile_size))
                 surf.fill((255, 0, 255))
                 self.images[item_id] = surf
 
     def spawn(self, item_id, x, y, **kwargs):
-        """Dynamic instantiation of modules based on the registry."""
-        if item_id not in self.registry:
-            return None
-        
+        if item_id not in self.registry: return None
         info = self.registry[item_id]
-        if info['type'] == 'static':
-            return None # Tiles are handled separately for performance
+        if info['type'] in ['static', 'decor']: return None
             
         module_path = info.get('module')
         class_name = info.get('class')
-        
-        if not module_path or not class_name:
-            return None
+        if not module_path or not class_name: return None
 
         try:
-            # Dynamic Import
             module = importlib.import_module(module_path)
             cls = getattr(module, class_name)
-            
-            # Merge default properties from registry with any overrides
             properties = info.get('properties', {}).copy()
             properties.update(kwargs)
-            
             return cls(x, y, properties)
         except Exception as e:
-            print(f"Failed to spawn {item_id} at ({x}, {y}): {e}")
+            print(f"Failed to spawn {item_id}: {e}")
             return None
 
     def get_image(self, item_id):
