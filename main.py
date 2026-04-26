@@ -5,6 +5,7 @@ import os
 from engine.loader import ResourceManager
 from modules.world.tile import Tile
 from engine.effects import EffectManager
+from engine.ui import UIManager
 
 # Constants
 SCREEN_WIDTH = 800
@@ -48,6 +49,7 @@ class Game:
         
         self.resources = ResourceManager()
         self.effect_manager = EffectManager()
+        self.ui_manager = UIManager()
         
         self.platforms = pygame.sprite.Group()
         self.decors = pygame.sprite.Group() # New group for props
@@ -143,6 +145,7 @@ class Game:
             self.player.draw(self.screen, self.camera)
             
             # HUD
+            self.ui_manager.draw_health_bar(self.screen, 20, 20, self.player.hp, self.player.max_hp, width_in_segments=6)
             self.player.draw_hud(self.screen)
             
             pygame.display.flip()

@@ -28,6 +28,8 @@ The project is divided into three main layers:
 A professional-grade level creation tool featuring:
 - **Level Launcher**: Menu for loading existing levels and a "Create New" screen for custom dimensions.
 - **Advanced UI**: Two-column layout with a **Nested Categorization System** (Tiles -> Concrete, Foundation, Green Grass, Purple Grass).
+- **Multi-Layer System**: Supports two distinct grid layers: `world` (solid tiles) and `entities` (props, players, enemies).
+- **Smart Stamping**: Automatically routes items to the correct layer based on their type (`static` vs `decor`/`entity`).
 - **Safety Systems**: Safe-Entry System (starts with no item selected) and Mouse Debounce (prevents accidental edits across states).
 - **Tool System**: Stamp and Erase modes (Left Click/Right Click).
 - **Undo Engine**: 50-step history via **Ctrl + Z**.
@@ -42,6 +44,12 @@ A professional-grade level creation tool featuring:
 | **Players** | `entity` | Spawns dynamic modules (e.g., `FoxPlayer` at `START`). |
 | **Weapons** | `entity` | Spawns weapon modules (e.g., `P` for Pistol, `CT` for SMG). |
 | **Enemies** | `entity` | Spawns AI modules (e.g., `E_I` for Insect, `E_b` for Bee). |
+
+## 📁 Level Format (Composite CSV)
+Levels are saved as `.csv` files where each cell uses a semicolon-separated format: `TILE_ID;ENTITY_ID`.
+- `TILE_ID`: The ID of the item in the `world` layer (or `-1` for empty).
+- `ENTITY_ID`: The ID of the item in the `entities` layer (props, enemies, etc., or `-1`).
+- Example: `Concrete_platform_48;Props_133` represents a solid stone tile with a decorative bush on top.
 
 ## 🛠️ Upcoming Roadmap
 - [ ] **Sound System**: Implement `engine/sounds.py` and integrate existing `.ogg` assets for actions (jump, shoot, hurt).

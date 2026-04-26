@@ -11,8 +11,8 @@ class FoxPlayer(PhysicsEntity):
         self.tile_size = 36
         
         # Stats
-        self.hp = 100
-        self.max_hp = 100
+        self.hp = 5
+        self.max_hp = 5
         self.speed = 5
         self.jump_force = -math.sqrt(2 * self.gravity * (3.5 * self.tile_size))
         
@@ -176,8 +176,9 @@ class FoxPlayer(PhysicsEntity):
 
     def draw_hud(self, screen):
         font = pygame.font.SysFont("Arial", 20, bold=True)
-        hp_text = font.render(f"HP: {self.hp}", True, (255, 50, 50))
-        screen.blit(hp_text, (20, 20))
+        # HP is now handled by UIManager bar
+        
+        # Weapon / Ammo
         weapon = self.weapon_slots[self.active_slot]
         if weapon:
             ammo_text = font.render(f"AMMO: {weapon.current_ammo} / {weapon.ammo_capacity}", True, (255, 255, 255))
