@@ -176,10 +176,4 @@ class FoxPlayer(PhysicsEntity):
 
     def draw_hud(self, screen):
         font = pygame.font.SysFont("Arial", 20, bold=True)
-        # HP is now handled by UIManager bar
-        
-        # Weapon / Ammo
-        weapon = self.weapon_slots[self.active_slot]
-        if weapon:
-            ammo_text = font.render(f"AMMO: {weapon.current_ammo} / {weapon.ammo_capacity}", True, (255, 255, 255))
-            screen.blit(ammo_text, (20, 50))
+        # HP and Ammo are now handled by UIManager bar and icon

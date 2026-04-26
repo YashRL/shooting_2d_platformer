@@ -146,6 +146,12 @@ class Game:
             
             # HUD
             self.ui_manager.draw_health_bar(self.screen, 20, 20, self.player.hp, self.player.max_hp, width_in_segments=6)
+            
+            # Ammo HUD
+            active_weapon = self.player.weapon_slots[self.player.active_slot]
+            if active_weapon:
+                self.ui_manager.draw_ammo(self.screen, 20, 65, active_weapon.current_ammo, active_weapon.ammo_capacity)
+            
             self.player.draw_hud(self.screen)
             
             pygame.display.flip()
