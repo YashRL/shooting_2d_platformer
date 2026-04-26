@@ -69,25 +69,32 @@ class Game:
             
         self.map_height = len(data) * 36
         self.map_width = len(data[0]) * 36
-        
         for r, row in enumerate(data):
-            for c, item_id in enumerate(row):
-                if item_id == '-1': continue
+            for c, cell in enumerate(row):
+                if cell == '-1': continue
                 x, y = c * 36, r * 36
-                info = self.resources.registry.get(item_id)
-                if not info: continue
-                
-                if info['type'] == 'static':
-                    self.platforms.add(Tile(x, y, self.resources.get_image(item_id)))
-                elif info['type'] == 'decor':
-                    self.decors.add(Tile(x, y, self.resources.get_image(item_id)))
-                elif info['category'] == 'Weapons':
-                    self.items.add(WorldItem(x, y, item_id, self.resources.get_image(item_id)))
-                elif info['type'] == 'entity':
-                    entity = self.resources.spawn(item_id, x, y)
-                    if entity:
-                        if item_id == 'START': self.player = entity
-                        else: self.entities.add(entity)
+
+                # Split cell into World and Entity layers
+                parts = cell.split(';')
+                ids_to_spawn = parts if len(parts) > 1 else [cell]
+
+                for item_id in ids_to_spawn:
+                    if item_id == '-1': continue
+
+                    info = self.resources.registry.get(item_id)
+                    if not info: continue
+
+                    if info['type'] == 'static':
+                        self.platforms.add(Tile(x, y, self.resources.get_image(item_id)))
+                    elif info['type'] == 'decor':
+                        self.decors.add(Tile(x, y, self.resources.get_image(item_id)))
+                    elif info['category'] == 'Weapons':
+                        self.items.add(WorldItem(x, y, item_id, self.resources.get_image(item_id)))
+                    elif info['type'] == 'entity':
+                        entity = self.resources.spawn(item_id, x, y)
+                        if entity:
+                            if item_id == 'START': self.player = entity
+                            else: self.entities.add(entity)
 
         if not self.player:
             self.player = self.resources.spawn('START', 100, 100)
