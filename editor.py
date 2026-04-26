@@ -43,7 +43,10 @@ class LevelEditor:
         self.header_font = pygame.font.SysFont("Segoe UI", 32, bold=True)
         
         # Initialize Engine Systems
-        self.resources = ResourceManager(TILE_SIZE)
+        self.base_tile_size = 36
+        self.current_tile_size = 36
+        self.zoom_level = 1.0
+        self.resources = ResourceManager(self.base_tile_size)
         self.levels_dir = os.path.join(os.getcwd(), "levels")
         os.makedirs(self.levels_dir, exist_ok=True)
         
@@ -59,21 +62,23 @@ class LevelEditor:
         self.new_level_name = "new_level"
         self.new_level_width = "50"
         self.new_level_height = "25"
-        self.active_input = "name" # "name", "width", "height"
+        self.active_input = "search" # "search", "name", "width", "height"
         
         # Caret (Cursor) Logic
         self.caret_visible = True
         self.caret_timer = pygame.time.get_ticks()
         self.caret_index = 0
         
-        # State scroll management
-        self.menu_scroll_y = 0
-        self.edit_scroll_y = 0
-        
         # Editing State
         self.categories = ["Tiles", "Players", "Enemies", "Weapons", "Props"]
         self.selected_category = "Tiles"
         self.selected_item = "1"
+        self.current_tool = "stamp" # "stamp" or "erase"
+        self.undo_stack = []
+        self.max_undo = 50
+        
+        self.menu_scroll_y = 0
+        self.edit_scroll_y = 0
         self.grid = []
         self.rows = 0
         self.cols = 0
@@ -85,8 +90,29 @@ class LevelEditor:
     def refresh_levels(self):
         if os.path.exists(self.levels_dir):
             self.levels_list = [f for f in os.listdir(self.levels_dir) if f.endswith('.csv')]
-        else:
-            self.levels_list = []
+        else: self.levels_list = []
+
+    def save_state_for_undo(self):
+        state = [row[:] for row in self.grid]
+        self.undo_stack.append(state)
+        if len(self.undo_stack) > self.max_undo: self.undo_stack.pop(0)
+
+    def undo(self):
+        if self.undo_stack:
+            self.grid = self.undo_stack.pop()
+
+    def zoom(self, amount, center_pos=None):
+        old_zoom = self.zoom_level
+        self.zoom_level = max(0.2, min(3.0, self.zoom_level + amount))
+        self.current_tile_size = int(self.base_tile_size * self.zoom_level)
+        if center_pos:
+            mouse_world_pos = (center_pos - self.camera_offset) / (self.base_tile_size * old_zoom)
+            self.camera_offset = center_pos - mouse_world_pos * self.current_tile_size
+
+    def recenter(self):
+        self.zoom_level = 1.0
+        self.current_tile_size = self.base_tile_size
+        self.camera_offset = pygame.Vector2(UI_WIDTH + 20, 50)
 
     def handle_text_input(self, text, event):
         if event.key == pygame.K_BACKSPACE:
@@ -94,23 +120,15 @@ class LevelEditor:
                 text = text[:self.caret_index - 1] + text[self.caret_index:]
                 self.caret_index -= 1
         elif event.key == pygame.K_DELETE:
-            if self.caret_index < len(text):
-                text = text[:self.caret_index] + text[self.caret_index + 1:]
-        elif event.key == pygame.K_LEFT:
-            self.caret_index = max(0, self.caret_index - 1)
-        elif event.key == pygame.K_RIGHT:
-            self.caret_index = min(len(text), self.caret_index + 1)
-        elif event.key == pygame.K_HOME:
-            self.caret_index = 0
-        elif event.key == pygame.K_END:
-            self.caret_index = len(text)
+            if self.caret_index < len(text): text = text[:self.caret_index] + text[self.caret_index + 1:]
+        elif event.key == pygame.K_LEFT: self.caret_index = max(0, self.caret_index - 1)
+        elif event.key == pygame.K_RIGHT: self.caret_index = min(len(text), self.caret_index + 1)
         elif event.unicode and event.unicode.isprintable():
             text = text[:self.caret_index] + event.unicode + text[self.caret_index:]
             self.caret_index += 1
         return text
 
     def get_caret_from_mouse(self, mouse_x, input_rect_x, text):
-        # Estimate caret position based on where user clicked
         relative_x = mouse_x - input_rect_x - 15
         best_index = 0
         min_diff = float('inf')
@@ -124,8 +142,7 @@ class LevelEditor:
 
     def create_new_level(self):
         try:
-            w = int(self.new_level_width)
-            h = int(self.new_level_height)
+            w, h = int(self.new_level_width), int(self.new_level_height)
             name = self.new_level_name if self.new_level_name.endswith('.csv') else self.new_level_name + ".csv"
             self.cols, self.rows = w, h
             self.grid = [['-1' for _ in range(w)] for _ in range(h)]
@@ -150,65 +167,52 @@ class LevelEditor:
         with open(path, "r") as f:
             reader = csv.reader(f)
             self.grid = list(reader)
-            self.rows, self.cols = len(self.grid), len(self.grid[0])
+            if self.grid:
+                self.rows, self.cols = len(self.grid), len(self.grid[0])
 
     def draw_grid(self):
         for r in range(self.rows):
             for c in range(self.cols):
-                x = self.camera_offset.x + c * TILE_SIZE
-                y = self.camera_offset.y + r * TILE_SIZE
-                
-                # Culling: Don't draw if outside screen (leaving room for UI)
-                if x < UI_WIDTH - TILE_SIZE or x > SCREEN_WIDTH or y < -TILE_SIZE or y > SCREEN_HEIGHT: 
-                    continue
-                
-                rect = pygame.Rect(x, y, TILE_SIZE, TILE_SIZE)
+                x = self.camera_offset.x + c * self.current_tile_size
+                y = self.camera_offset.y + r * self.current_tile_size
+                if x < UI_WIDTH - self.current_tile_size or x > SCREEN_WIDTH or y < -self.current_tile_size or y > SCREEN_HEIGHT: continue
+                rect = pygame.Rect(x, y, self.current_tile_size, self.current_tile_size)
                 pygame.draw.rect(self.screen, (60, 60, 60), rect, 1)
-                
                 val = self.grid[r][c]
                 if val != '-1':
                     img = self.resources.get_image(val)
-                    if img: self.screen.blit(img, (x, y))
+                    if img: self.screen.blit(pygame.transform.scale(img, (self.current_tile_size, self.current_tile_size)), (x, y))
 
     def draw_menu(self):
         self.screen.fill(DARK_GRAY)
         if pygame.time.get_ticks() - self.caret_timer > 500:
             self.caret_visible = not self.caret_visible
             self.caret_timer = pygame.time.get_ticks()
-
         title = self.header_font.render("GEMINI LEVEL LAUNCHER", True, ACCENT)
         self.screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 50))
-        
-        # Search Bar
         search_rect = pygame.Rect(SCREEN_WIDTH//2 - 200, 130, 400, 40)
         pygame.draw.rect(self.screen, INPUT_BG, search_rect, border_radius=5)
         pygame.draw.rect(self.screen, ACCENT if self.active_input == "search" else GRAY, search_rect, 1, border_radius=5)
-        
         search_label = self.font.render("Search: " + self.search_query, True, WHITE)
         self.screen.blit(search_label, (search_rect.x + 10, search_rect.y + 10))
-        
         if self.active_input == "search" and self.caret_visible:
             w, _ = self.font.size(self.search_query[:self.caret_index])
             cx = search_rect.x + 10 + self.font.size("Search: ")[0] + w
             pygame.draw.line(self.screen, WHITE, (cx, search_rect.y + 10), (cx, search_rect.y + 30), 2)
-
-        # Level List
         list_rect = pygame.Rect(SCREEN_WIDTH//2 - 250, 200, 500, 400)
         pygame.draw.rect(self.screen, BLACK, list_rect, border_radius=10)
         filtered = [f for f in self.levels_list if self.search_query.lower() in f.lower()]
-        
         item_h = 50
         list_surf = pygame.Surface((list_rect.width - 20, max(list_rect.height, len(filtered) * item_h)))
         list_surf.fill(BLACK)
+        mx, my = pygame.mouse.get_pos()
         for i, level_name in enumerate(filtered):
             y = i * item_h
             r = pygame.Rect(0, y, list_surf.get_width(), item_h - 5)
-            mx, my = pygame.mouse.get_pos()
             color = ACCENT if r.collidepoint(mx - list_rect.x - 10, my - list_rect.y - 10 + self.menu_scroll_y) else LIGHT_GRAY
             pygame.draw.rect(list_surf, color, r, border_radius=5)
             list_surf.blit(self.font.render(level_name, True, WHITE), (20, y + 10))
         self.screen.blit(list_surf, (list_rect.x + 10, list_rect.y + 10), area=pygame.Rect(0, self.menu_scroll_y, list_rect.width-20, list_rect.height-20))
-
         create_btn = pygame.Rect(SCREEN_WIDTH//2 - 100, 630, 200, 50)
         pygame.draw.rect(self.screen, (0, 120, 0), create_btn, border_radius=10)
         self.screen.blit(self.bold_font.render("CREATE NEW", True, WHITE), self.bold_font.render("CREATE NEW", True, WHITE).get_rect(center=create_btn.center))
@@ -218,10 +222,8 @@ class LevelEditor:
         if pygame.time.get_ticks() - self.caret_timer > 500:
             self.caret_visible = not self.caret_visible
             self.caret_timer = pygame.time.get_ticks()
-
         title = self.header_font.render("NEW LEVEL SPECIFICATIONS", True, ACCENT)
         self.screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 100))
-        
         fields = [("LEVEL NAME", self.new_level_name, "name"), ("WIDTH (COLS)", self.new_level_width, "width"), ("HEIGHT (ROWS)", self.new_level_height, "height")]
         for i, (label, val, key) in enumerate(fields):
             y = 250 + i * 120
@@ -234,118 +236,123 @@ class LevelEditor:
                 w, _ = self.font.size(val[:self.caret_index])
                 cx = r.x + 15 + w
                 pygame.draw.line(self.screen, WHITE, (cx, r.y + 10), (cx, r.y + 35), 2)
-
-        conf_rect = pygame.Rect(SCREEN_WIDTH//2 - 210, 650, 200, 50)
-        back_rect = pygame.Rect(SCREEN_WIDTH//2 + 10, 650, 200, 50)
-        pygame.draw.rect(self.screen, (0, 150, 0), conf_rect, border_radius=10)
-        pygame.draw.rect(self.screen, (150, 0, 0), back_rect, border_radius=10)
+        conf_rect, back_rect = pygame.Rect(SCREEN_WIDTH//2 - 210, 650, 200, 50), pygame.Rect(SCREEN_WIDTH//2 + 10, 650, 200, 50)
+        pygame.draw.rect(self.screen, (0, 150, 0), conf_rect, border_radius=10); pygame.draw.rect(self.screen, (150, 0, 0), back_rect, border_radius=10)
         self.screen.blit(self.font.render("CONFIRM", True, WHITE), self.font.render("CONFIRM", True, WHITE).get_rect(center=conf_rect.center))
         self.screen.blit(self.font.render("BACK", True, WHITE), self.font.render("BACK", True, WHITE).get_rect(center=back_rect.center))
+
+    def draw_editing_ui(self):
+        pygame.draw.rect(self.screen, DARK_GRAY, (0, 0, UI_WIDTH, SCREEN_HEIGHT))
+        lvl_name = os.path.basename(self.current_level_path)
+        self.screen.blit(self.bold_font.render(lvl_name.upper(), True, ACCENT), (20, 15))
+        btn_save, btn_menu = pygame.Rect(10, 50, UI_WIDTH//2 - 15, 30), pygame.Rect(UI_WIDTH//2 + 5, 50, UI_WIDTH//2 - 15, 30)
+        pygame.draw.rect(self.screen, LIGHT_GRAY, btn_save, border_radius=5); pygame.draw.rect(self.screen, LIGHT_GRAY, btn_menu, border_radius=5)
+        self.screen.blit(self.small_font.render("SAVE", True, WHITE), self.small_font.render("SAVE", True, WHITE).get_rect(center=btn_save.center))
+        self.screen.blit(self.small_font.render("MENU", True, WHITE), self.small_font.render("MENU", True, WHITE).get_rect(center=btn_menu.center))
+        mx, my = pygame.mouse.get_pos()
+        m_clicked = pygame.mouse.get_pressed()[0]
+        if m_clicked:
+            if btn_save.collidepoint(mx, my): self.save_scene(self.current_level_path); pygame.time.wait(200)
+            if btn_menu.collidepoint(mx, my): self.state = STATE_MENU; self.refresh_levels(); pygame.time.wait(200)
+        tool_y = 95
+        self.screen.blit(self.small_font.render("TOOL:", True, GRAY), (20, tool_y))
+        stamp_btn, erase_btn = pygame.Rect(70, tool_y - 5, 60, 25), pygame.Rect(140, tool_y - 5, 60, 25)
+        pygame.draw.rect(self.screen, ACCENT if self.current_tool == "stamp" else LIGHT_GRAY, stamp_btn, border_radius=5)
+        pygame.draw.rect(self.screen, ACCENT if self.current_tool == "erase" else LIGHT_GRAY, erase_btn, border_radius=5)
+        self.screen.blit(self.small_font.render("STAMP", True, WHITE), self.small_font.render("STAMP", True, WHITE).get_rect(center=stamp_btn.center))
+        self.screen.blit(self.small_font.render("ERASE", True, WHITE), self.small_font.render("ERASE", True, WHITE).get_rect(center=erase_btn.center))
+        if m_clicked:
+            if stamp_btn.collidepoint(mx, my): self.current_tool = "stamp"
+            if erase_btn.collidepoint(mx, my): self.current_tool = "erase"
+        zoom_y = 135
+        self.screen.blit(self.small_font.render(f"ZOOM: {int(self.zoom_level * 100)}%", True, WHITE), (20, zoom_y))
+        plus_rect, minus_rect, reset_rect = pygame.Rect(20, zoom_y+20, 30, 25), pygame.Rect(60, zoom_y+20, 30, 25), pygame.Rect(100, zoom_y+20, 80, 25)
+        pygame.draw.rect(self.screen, LIGHT_GRAY, plus_rect, border_radius=5); pygame.draw.rect(self.screen, LIGHT_GRAY, minus_rect, border_radius=5); pygame.draw.rect(self.screen, LIGHT_GRAY, reset_rect, border_radius=5)
+        self.screen.blit(self.font.render("+", True, WHITE), self.font.render("+", True, WHITE).get_rect(center=plus_rect.center)); self.screen.blit(self.font.render("-", True, WHITE), self.font.render("-", True, WHITE).get_rect(center=minus_rect.center)); self.screen.blit(self.small_font.render("RESET", True, WHITE), self.small_font.render("RESET", True, WHITE).get_rect(center=reset_rect.center))
+        if m_clicked:
+            if plus_rect.collidepoint(mx, my): self.zoom(0.02)
+            if minus_rect.collidepoint(mx, my): self.zoom(-0.02)
+            if reset_rect.collidepoint(mx, my): self.recenter()
+        cat_start_y = 195
+        for i, cat in enumerate(self.categories):
+            rect = pygame.Rect(10, cat_start_y + i * 35, UI_WIDTH - 20, 30)
+            color = GRAY if self.selected_category == cat else BLACK
+            pygame.draw.rect(self.screen, color, rect, border_radius=5)
+            text_surf = self.small_font.render(cat, True, BLACK if self.selected_category == cat else WHITE)
+            self.screen.blit(text_surf, text_surf.get_rect(center=rect.center))
+            if rect.collidepoint(mx, my) and m_clicked: self.selected_category, self.edit_scroll_y = cat, 0
+        item_start_y, items = 380, [k for k, v in self.resources.registry.items() if v['category'] == self.selected_category]
+        cols, padding = 4, 10
+        box_size = (UI_WIDTH - (cols + 1) * padding) // cols
+        for i, item_id in enumerate(items):
+            col, row = i % cols, i // cols
+            x, y = padding + col * (box_size + padding), item_start_y + row * (box_size + padding) - self.edit_scroll_y
+            if y < item_start_y - box_size or y > SCREEN_HEIGHT - 120: continue
+            rect = pygame.Rect(x, y, box_size, box_size)
+            if self.selected_item == item_id: pygame.draw.rect(self.screen, HIGHLIGHT, rect.inflate(6, 6), 2, border_radius=5)
+            self.screen.blit(pygame.transform.scale(self.resources.get_image(item_id), (box_size, box_size)), (x, y))
+            if rect.collidepoint(mx, my) and m_clicked: self.selected_item = item_id
+        play_rect = pygame.Rect(20, SCREEN_HEIGHT - 50, UI_WIDTH - 40, 35)
+        pygame.draw.rect(self.screen, (0, 150, 0), play_rect, border_radius=8)
+        self.screen.blit(self.font.render("PLAY SCENE", True, WHITE), self.font.render("PLAY SCENE", True, WHITE).get_rect(center=play_rect.center))
+        if play_rect.collidepoint(mx, my) and m_clicked:
+            self.save_scene(self.current_level_path); subprocess.Popen([sys.executable, "main.py", self.current_level_path]); pygame.time.wait(200)
+
+    def handle_editing_input(self):
+        mx, my = pygame.mouse.get_pos()
+        m_keys = pygame.mouse.get_pressed()
+        if mx > UI_WIDTH:
+            gx, gy = int((mx - self.camera_offset.x) // self.current_tile_size), int((my - self.camera_offset.y) // self.current_tile_size)
+            if 0 <= gx < self.cols and 0 <= gy < self.rows:
+                if m_keys[0]:
+                    target = self.selected_item if self.current_tool == "stamp" else "-1"
+                    if self.grid[gy][gx] != target: self.save_state_for_undo(); self.grid[gy][gx] = target
+                if m_keys[2]:
+                    if self.grid[gy][gx] != "-1": self.save_state_for_undo(); self.grid[gy][gx] = "-1"
+        if m_keys[1]:
+            if not self.is_panning: self.is_panning, self.last_mouse_pos = True, (mx, my)
+            else: self.camera_offset += pygame.Vector2(mx - self.last_mouse_pos[0], my - self.last_mouse_pos[1]); self.last_mouse_pos = (mx, my)
+        else: self.is_panning = False
 
     def run(self):
         while True:
             self.screen.fill(SKY_BLUE)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT: pygame.quit(); sys.exit()
-                
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mx, my = event.pos
                     if self.state == STATE_MENU:
-                        search_rect = pygame.Rect(SCREEN_WIDTH//2 - 200, 130, 400, 40)
-                        if search_rect.collidepoint(mx, my):
-                            self.active_input = "search"
-                            self.caret_index = self.get_caret_from_mouse(mx, search_rect.x + self.font.size("Search: ")[0], self.search_query)
-                        
-                        create_btn = pygame.Rect(SCREEN_WIDTH//2 - 100, 630, 200, 50)
-                        if create_btn.collidepoint(mx, my): self.state = STATE_CREATE; self.active_input = "name"; self.caret_index = len(self.new_level_name)
-                        
-                        list_rect = pygame.Rect(SCREEN_WIDTH//2 - 250, 200, 500, 400)
-                        if list_rect.collidepoint(mx, my):
+                        if pygame.Rect(SCREEN_WIDTH//2-200, 130, 400, 40).collidepoint(mx, my): self.active_input, self.caret_index = "search", self.get_caret_from_mouse(mx, SCREEN_WIDTH//2-200+self.font.size("Search: ")[0], self.search_query)
+                        if pygame.Rect(SCREEN_WIDTH//2-100, 630, 200, 50).collidepoint(mx, my): self.state, self.active_input = STATE_CREATE, "name"; self.caret_index = len(self.new_level_name)
+                        lr = pygame.Rect(SCREEN_WIDTH//2-250, 200, 500, 400)
+                        if lr.collidepoint(mx, my):
                             filtered = [f for f in self.levels_list if self.search_query.lower() in f.lower()]
-                            idx = (my - list_rect.y - 10 + self.menu_scroll_y) // 50
+                            idx = (my - lr.y - 10 + self.menu_scroll_y) // 50
                             if 0 <= idx < len(filtered): self.load_level_from_menu(filtered[idx])
-
                     elif self.state == STATE_CREATE:
-                        fields_y = [250, 370, 490]
-                        keys = ["name", "width", "height"]
-                        vals = [self.new_level_name, self.new_level_width, self.new_level_height]
-                        for y, key, val in zip(fields_y, keys, vals):
-                            r = pygame.Rect(SCREEN_WIDTH//2 - 150, y + 40, 300, 45)
-                            if r.collidepoint(mx, my):
-                                self.active_input = key
-                                self.caret_index = self.get_caret_from_mouse(mx, r.x, val)
-                        
-                        conf_rect = pygame.Rect(SCREEN_WIDTH//2 - 210, 650, 200, 50)
-                        if conf_rect.collidepoint(mx, my): self.create_new_level()
-                        if pygame.Rect(SCREEN_WIDTH//2 + 10, 650, 200, 50).collidepoint(mx, my): self.state = STATE_MENU
-
+                        for i, (label, val, key) in enumerate([("name", self.new_level_name, "name"), ("width", self.new_level_width, "width"), ("height", self.new_level_height, "height")]):
+                            if pygame.Rect(SCREEN_WIDTH//2-150, 250+i*120+40, 300, 45).collidepoint(mx, my): self.active_input, self.caret_index = key, self.get_caret_from_mouse(mx, SCREEN_WIDTH//2-150, val)
+                        if pygame.Rect(SCREEN_WIDTH//2-210, 650, 200, 50).collidepoint(mx, my): self.create_new_level()
+                        if pygame.Rect(SCREEN_WIDTH//2+10, 650, 200, 50).collidepoint(mx, my): self.state = STATE_MENU
                 if event.type == pygame.KEYDOWN:
-                    if self.state == STATE_MENU and self.active_input == "search":
-                        self.search_query = self.handle_text_input(self.search_query, event)
+                    mods = pygame.key.get_mods()
+                    if self.state == STATE_MENU and self.active_input == "search": self.search_query = self.handle_text_input(self.search_query, event)
                     elif self.state == STATE_CREATE:
-                        if event.key == pygame.K_TAB:
-                            order = ["name", "width", "height"]
-                            self.active_input = order[(order.index(self.active_input) + 1) % 3]
-                            self.caret_index = len(getattr(self, f"new_level_{self.active_input}"))
-                        else:
-                            attr = f"new_level_{self.active_input}"
-                            setattr(self, attr, self.handle_text_input(getattr(self, attr), event))
+                        if event.key == pygame.K_TAB: order = ["name", "width", "height"]; self.active_input = order[(order.index(self.active_input)+1)%3]; self.caret_index = len(getattr(self, f"new_level_{self.active_input}"))
+                        else: attr = f"new_level_{self.active_input}"; setattr(self, attr, self.handle_text_input(getattr(self, attr), event))
                     elif self.state == STATE_EDITING:
-                        if event.key == pygame.K_s: self.save_scene(self.current_level_path)
+                        if mods & pygame.KMOD_CTRL:
+                            if event.key == pygame.K_s: self.save_scene(self.current_level_path)
+                            if event.key == pygame.K_z: self.undo()
                         if event.key == pygame.K_m: self.state = STATE_MENU; self.refresh_levels()
-
                 if event.type == pygame.MOUSEWHEEL:
-                    if self.state == STATE_MENU: self.menu_scroll_y = max(0, self.menu_scroll_y - event.y * 30)
-                    elif self.state == STATE_EDITING and pygame.mouse.get_pos()[0] < UI_WIDTH: self.edit_scroll_y = max(0, self.edit_scroll_y - event.y * 30)
-
+                    mx, my = pygame.mouse.get_pos()
+                    if self.state == STATE_EDITING and (pygame.key.get_mods() & pygame.KMOD_CTRL): self.zoom(event.y * 0.1, pygame.Vector2(mx, my))
+                    elif self.state == STATE_MENU: self.menu_scroll_y = max(0, self.menu_scroll_y - event.y * 30)
+                    elif self.state == STATE_EDITING and mx < UI_WIDTH: self.edit_scroll_y = max(0, self.edit_scroll_y - event.y * 30)
             if self.state == STATE_MENU: self.draw_menu()
             elif self.state == STATE_CREATE: self.draw_create_screen()
-            elif self.state == STATE_EDITING:
-                # [Previous editing logic remains...]
-                mx, my = pygame.mouse.get_pos()
-                m_keys = pygame.mouse.get_pressed()
-                if mx > UI_WIDTH:
-                    gx, gy = int((mx - self.camera_offset.x) // TILE_SIZE), int((my - self.camera_offset.y) // TILE_SIZE)
-                    if 0 <= gx < self.cols and 0 <= gy < self.rows:
-                        if m_keys[0]: self.grid[gy][gx] = self.selected_item
-                        if m_keys[2]: self.grid[gy][gx] = '-1'
-                if m_keys[1]:
-                    if not self.is_panning: self.is_panning, self.last_mouse_pos = True, (mx, my)
-                    else: self.camera_offset += pygame.Vector2(mx - self.last_mouse_pos[0], my - self.last_mouse_pos[1]); self.last_mouse_pos = (mx, my)
-                else: self.is_panning = False
-                self.draw_grid()
-                # Draw editing UI sidebar
-                pygame.draw.rect(self.screen, DARK_GRAY, (0, 0, UI_WIDTH, SCREEN_HEIGHT))
-                self.screen.blit(self.bold_font.render(os.path.basename(self.current_level_path).upper(), True, ACCENT), (20, 20))
-                for i, cat in enumerate(self.categories):
-                    rect = pygame.Rect(10, 70 + i * 35, UI_WIDTH - 20, 30)
-                    color = GRAY if self.selected_category == cat else BLACK
-                    pygame.draw.rect(self.screen, color, rect, border_radius=5)
-                    self.screen.blit(self.small_font.render(cat, True, BLACK if self.selected_category == cat else WHITE), self.small_font.render(cat, True, BLACK if self.selected_category == cat else WHITE).get_rect(center=rect.center))
-                    if rect.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]: self.selected_category, self.edit_scroll_y = cat, 0
-                start_y, items = 260, [k for k, v in self.resources.registry.items() if v['category'] == self.selected_category]
-                cols, padding = 4, 10
-                box_size = (UI_WIDTH - (cols + 1) * padding) // cols
-                for i, item_id in enumerate(items):
-                    col, row = i % cols, i // cols
-                    x, y = padding + col * (box_size + padding), start_y + row * (box_size + padding) - self.edit_scroll_y
-                    if y < start_y - box_size or y > SCREEN_HEIGHT - 120: continue
-                    rect = pygame.Rect(x, y, box_size, box_size)
-                    if self.selected_item == item_id: pygame.draw.rect(self.screen, HIGHLIGHT, rect.inflate(6, 6), 2, border_radius=5)
-                    self.screen.blit(pygame.transform.scale(self.resources.get_image(item_id), (box_size, box_size)), (x, y))
-                    if rect.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]: self.selected_item = item_id
-                info = ["S: Save", "M: Main Menu", "Middle Click: Pan"]
-                for i, text in enumerate(info): self.screen.blit(self.small_font.render(text, True, GRAY), (20, SCREEN_HEIGHT - 110 + i * 20))
-                play_rect = pygame.Rect(20, SCREEN_HEIGHT - 50, UI_WIDTH - 40, 35)
-                pygame.draw.rect(self.screen, (0, 150, 0), play_rect, border_radius=8)
-                self.screen.blit(self.font.render("PLAY SCENE", True, WHITE), self.font.render("PLAY SCENE", True, WHITE).get_rect(center=play_rect.center))
-                if play_rect.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
-                    self.save_scene(self.current_level_path)
-                    subprocess.Popen([sys.executable, "main.py", self.current_level_path])
-                    pygame.time.wait(200)
-
-            pygame.display.flip()
-            self.clock.tick(FPS)
-
+            elif self.state == STATE_EDITING: self.handle_editing_input(); self.draw_grid(); self.draw_editing_ui()
+            pygame.display.flip(); self.clock.tick(FPS)
 if __name__ == "__main__":
     LevelEditor().run()
