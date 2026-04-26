@@ -188,7 +188,7 @@ class LevelEditor:
         if pygame.time.get_ticks() - self.caret_timer > 500:
             self.caret_visible = not self.caret_visible
             self.caret_timer = pygame.time.get_ticks()
-        title = self.header_font.render("GEMINI LEVEL LAUNCHER", True, ACCENT)
+        title = self.header_font.render("THETREESENTINAL LEVEL LAUNCHER", True, ACCENT)
         self.screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 50))
         search_rect = pygame.Rect(SCREEN_WIDTH//2 - 200, 130, 400, 40)
         pygame.draw.rect(self.screen, INPUT_BG, search_rect, border_radius=5)

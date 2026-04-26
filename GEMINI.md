@@ -1,4 +1,10 @@
-# Gemini Engine - 2D Platformer Framework
+# Instructions for Coding Agents
+1. Use environment "conda activate games".
+2. Constantly update `registry.json` for new assets and stats.
+3. Keep this file updated as the "Source of Truth" for the engine's state.
+4. This file is Agent-first.
+
+# TheTreeSentinal Engine by Yash - 2D Platformer Framework
 
 ## 🚀 Engine Overview
 A modular, data-driven 2D platformer engine built on top of **Pygame-ce**. The engine uses a **Registry-Driven Architecture**, allowing for high scalability and separation of concerns.
@@ -7,21 +13,24 @@ A modular, data-driven 2D platformer engine built on top of **Pygame-ce**. The e
 The project is divided into three main layers:
 
 ### 1. Engine Layer (`/engine`)
-- **`loader.py`**: The `ResourceManager` handles `registry.json`, pre-loads assets, and dynamically spawns entity classes.
+- **`loader.py`**: The `ResourceManager` handles `registry.json`, pre-loads assets, and dynamically spawns entity classes via `importlib`.
 - **`physics.py`**: `PhysicsEntity` provides centralized gravity, collision, and terminal velocity logic.
-- **`animation.py`**: `AnimationManager` handles state-based frame cycling, flipping, and juicy effects like red-tinted damage flashes.
+- **`animation.py`**: `AnimationManager` handles state-based frame cycling, flipping, and red-tinted damage flashes.
 - **`effects.py`**: `EffectManager` manages particles (muzzle flashes), screen shake, and projectile life-cycles.
 
 ### 2. Module Layer (`/modules`)
-Every game object is a self-contained module:
-- **`player/`**: `FoxPlayer` handles complex input, variable-height jumping, and a 2-slot weapon inventory.
-- **`enemies/`**: `BaseEnemy` framework with `Insect` (ground patrol) and `Bee` (advanced flying AI/guarding).
-- **`weapons/`**: Modular weapon classes (`Pistol`, `SMG`) defined by stats in the registry.
-- **`world/`**: Tile and Prop logic.
+- **`player/`**: `FoxPlayer` features variable-height jumping, 2-slot weapon inventory, and dynamic UI.
+- **`enemies/`**: `BaseEnemy` framework with `Insect` (ground patrol/edge detection) and `Bee` (advanced flying AI with guard/chase logic).
+- **`weapons/`**: Modular weapon classes (`Pistol`, `SMG`) driven by registry stats.
+- **`world/`**: `Tile` and `WorldItem` classes.
 
-### 3. Data Layer (`/data` & `/levels`)
-- **`registry.json`**: The "Master Brain." Defines item types, asset paths, Python class mappings, and combat stats.
-- **Scene Files**: CSV-based grid data representing world layouts.
+### 3. Editor Layer (`editor.py`)
+A professional-grade level creation tool featuring:
+- **Level Launcher**: Menu for loading existing levels and a "Create New" screen for custom dimensions.
+- **Tool System**: Stamp and Erase modes (Left Click/Right Click).
+- **Undo Engine**: 50-step history via **Ctrl + Z**.
+- **Dynamic Navigation**: Zoom (Ctrl + Scroll) and Panning (Middle Click).
+- **Instant Testing**: "PLAY SCENE" button launches the game with the current level.
 
 ## 🗝️ Registry Identifiers (JSON/CSV)
 | ID | Type | Description |
@@ -31,22 +40,8 @@ Every game object is a self-contained module:
 | **P / CT** | Weapon | Pistol and Chicago Typewriter (SMG) |
 | **E_I / E_b** | Enemy | Insect (Ground) and Bee (Flying AI) |
 
-## 🎮 Current Controls
-- **W**: Jump (Dynamic height based on hold duration)
-- **A / D**: Horizontal Movement
-- **Spacebar / Left Click**: Shoot Weapon
-- **R**: Manual Reload
-- **E**: Interact / Pick up World Items
-- **1 / 2**: Switch Weapon Slots
-
-## ✨ Juicy Combat Features
-- **Variable Jump**: Hold W for higher jumps; quick tap for hops.
-- **Impact Feedback**: Entities flash red on damage and experience resistance-based knockback.
-- **Screen Juice**: Screen shake and muzzle particles on every shot.
-- **Reload UI**: Circular progress bar appears near the weapon during reloads.
-
 ## 🛠️ Upcoming Roadmap
-- [ ] **Sound System**: Implement `engine/sounds.py` to utilize existing `.ogg` assets.
+- [ ] **Sound System**: Implement `engine/sounds.py` and integrate existing `.ogg` assets.
 - [ ] **Prop System**: Add a "Decor" category for non-colliding world props (bushes, clouds).
-- [ ] **Level Metadata**: Transition from raw CSV to JSON for levels to store metadata (name, theme, music).
-- [ ] **Editor UI**: Add in-editor grid resizing and level naming.
+- [ ] **Level Metadata**: Transition from raw CSV to JSON for levels to store name, theme, and music data.
+- [ ] **Animation Expansion**: Add more animation states (hurt, death, reload) to player and enemies.

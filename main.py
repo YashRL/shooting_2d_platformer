@@ -43,7 +43,7 @@ class Game:
     def __init__(self, level_path):
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        pygame.display.set_caption("Gemini Engine - Juicy Combat")
+        pygame.display.set_caption("TheTreeSentinal Engine by Yash - Juicy Combat")
         self.clock = pygame.time.Clock()
         
         self.resources = ResourceManager()
