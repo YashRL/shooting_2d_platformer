@@ -57,6 +57,7 @@ class Game:
         # Load Metadata
         theme = "nature_1"
         intensity = 1.0
+        y_offset = 0
         meta_path = level_path.replace('.csv', '.json')
         if os.path.exists(meta_path):
             import json
@@ -64,11 +65,12 @@ class Game:
                 meta = json.load(f)
                 theme = meta.get("theme", "nature_1")
                 intensity = meta.get("parallax_intensity", 1.0)
+                y_offset = meta.get("parallax_y_offset", 0)
 
         self.resources = ResourceManager()
         self.effect_manager = EffectManager()
         self.ui_manager = UIManager()
-        self.parallax_manager = ParallaxManager(f"Assets/PNG/Backgrounds/{theme}", SCREEN_HEIGHT, intensity)
+        self.parallax_manager = ParallaxManager(f"Assets/PNG/Backgrounds/{theme}", SCREEN_HEIGHT, intensity, y_offset)
         
         self.platforms = pygame.sprite.Group()
         self.decors = pygame.sprite.Group() # New group for props

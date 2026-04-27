@@ -11,22 +11,23 @@ class ParallaxLayer:
         self.base_factor = factor
         self.width = new_width
 
-    def draw(self, screen, camera_x, intensity=1.0):
+    def draw(self, screen, camera_x, intensity=1.0, y_offset=0):
         # Calculate horizontal offset based on camera position and parallax factor
         offset = (camera_x * (self.base_factor * intensity)) % self.width
         
-        # Draw the main image
-        screen.blit(self.image, (-offset, 0))
+        # Draw the main image with y_offset
+        screen.blit(self.image, (-offset, y_offset))
         
         # Draw a second copy to handle the loop
         if offset > 0:
-            screen.blit(self.image, (self.width - offset, 0))
+            screen.blit(self.image, (self.width - offset, y_offset))
 
 class ParallaxManager:
-    def __init__(self, theme_path, screen_height, intensity=1.0):
+    def __init__(self, theme_path, screen_height, intensity=1.0, y_offset=0):
         self.layers = []
         self.screen_height = screen_height
         self.intensity = intensity
+        self.y_offset = y_offset
         self.load_theme(theme_path)
 
     def load_theme(self, theme_path):
@@ -35,7 +36,6 @@ class ParallaxManager:
             return
 
         # Explicitly define layers based on the nature structure
-        # Background packs usually have these files
         layer_files = ['1.png', '2.png', '3.png', '5.png', '6.png', '7.png', '8.png', '10.png']
         
         base_factor = 0.05
@@ -48,4 +48,4 @@ class ParallaxManager:
 
     def draw(self, screen, camera_x):
         for layer in self.layers:
-            layer.draw(screen, camera_x, self.intensity)
+            layer.draw(screen, camera_x, self.intensity, self.y_offset)

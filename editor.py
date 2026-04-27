@@ -73,6 +73,7 @@ class LevelEditor:
         self.available_themes = [d for d in os.listdir("Assets/PNG/Backgrounds") if os.path.isdir(os.path.join("Assets/PNG/Backgrounds", d))]
         self.current_theme = "nature_1"
         self.parallax_intensity = 1.0
+        self.parallax_y_offset = 0
         
         self.current_tool = "stamp"
         self.undo_stack = []
@@ -184,6 +185,7 @@ class LevelEditor:
         meta = {
             "theme": self.current_theme,
             "parallax_intensity": self.parallax_intensity,
+            "parallax_y_offset": self.parallax_y_offset,
             "width": self.cols,
             "height": self.rows
         }
@@ -202,6 +204,7 @@ class LevelEditor:
                 meta = json.load(f)
                 self.current_theme = meta.get("theme", "nature_1")
                 self.parallax_intensity = meta.get("parallax_intensity", 1.0)
+                self.parallax_y_offset = meta.get("parallax_y_offset", 0)
 
         with open(path, "r") as f:
             reader = csv.reader(f)
@@ -467,6 +470,18 @@ class LevelEditor:
         
         if slider_rect.inflate(0, 40).collidepoint(mx, my) and m_clicked:
             self.parallax_intensity = max(0.0, min(2.0, (mx - slider_rect.x) / slider_rect.width * 2.0))
+
+        # Vertical Offset
+        self.screen.blit(self.bold_font.render(f"VERTICAL OFFSET: {int(self.parallax_y_offset)}px", True, GRAY), (panel_rect.x + 30, panel_rect.y + 340))
+        v_slider_rect = pygame.Rect(panel_rect.x + 30, panel_rect.y + 380, 540, 10)
+        pygame.draw.rect(self.screen, BLACK, v_slider_rect, border_radius=5)
+        # Map -300 to 300 into the slider
+        v_handle_x = v_slider_rect.x + ((self.parallax_y_offset + 300) / 600.0) * v_slider_rect.width
+        v_handle_rect = pygame.Rect(v_handle_x - 10, v_slider_rect.y - 10, 20, 30)
+        pygame.draw.rect(self.screen, ACCENT, v_handle_rect, border_radius=5)
+        
+        if v_slider_rect.inflate(0, 40).collidepoint(mx, my) and m_clicked:
+            self.parallax_y_offset = ((mx - v_slider_rect.x) / v_slider_rect.width * 600.0) - 300
 
         # Close Button
         close_btn = pygame.Rect(panel_rect.centerx - 100, panel_rect.bottom - 70, 200, 45)

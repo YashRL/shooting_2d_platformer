@@ -1,6 +1,7 @@
 {
     "theme": "nature_1",
     "parallax_intensity": 1.0,
+    "parallax_y_offset": 2.2222222222221717,
     "width": 50,
     "height": 25
 }
