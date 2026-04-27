@@ -209,10 +209,16 @@ class LevelEditor:
                 val_e = self.grid_entities[r][c]
                 
                 if val_w != '-1':
+                    info = self.resources.registry.get(val_w)
+                    factor = info.get('parallax_factor', 1.0) if info else 1.0
+                    # For editor, we might want to toggle parallax or just show it 1:1.
+                    # Let's show it 1:1 for precise placement, but I'll add the factor logic for consistency if desired.
+                    # Actually, in editor, 1:1 is better for placement. 
                     img = self.resources.get_image(val_w)
                     if img: self.screen.blit(pygame.transform.scale(img, (self.current_tile_size, self.current_tile_size)), (x, y))
                 
                 if val_e != '-1':
+                    info = self.resources.registry.get(val_e)
                     img = self.resources.get_image(val_e)
                     if img: self.screen.blit(pygame.transform.scale(img, (self.current_tile_size, self.current_tile_size)), (x, y))
 

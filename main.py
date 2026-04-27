@@ -20,10 +20,15 @@ class Camera:
         self.offset_shake = (0, 0)
 
     def apply(self, entity):
-        return entity.rect.move(self.camera.topleft).move(self.offset_shake)
+        # Default behavior: 1.0 parallax
+        factor = getattr(entity, 'parallax_factor', 1.0)
+        return self.apply_rect(entity.rect, factor)
 
-    def apply_rect(self, rect):
-        return rect.move(self.camera.topleft).move(self.offset_shake)
+    def apply_rect(self, rect, factor=1.0):
+        # Parallax Math: Apply only a fraction of the camera movement
+        px = self.camera.x * factor
+        py = self.camera.y * factor
+        return rect.move(px, py).move(self.offset_shake)
 
     def update(self, target, shake_offset=(0,0)):
         self.offset_shake = shake_offset
@@ -34,11 +39,12 @@ class Camera:
         self.camera.topleft = (x, y)
 
 class WorldItem(pygame.sprite.Sprite):
-    def __init__(self, x, y, item_id, image):
+    def __init__(self, x, y, item_id, image, parallax_factor=1.0):
         super().__init__()
         self.item_id = item_id
         self.image = image
         self.rect = self.image.get_rect(topleft=(x, y))
+        self.parallax_factor = parallax_factor
 
 class Game:
     def __init__(self, level_path):
@@ -86,15 +92,18 @@ class Game:
                     info = self.resources.registry.get(item_id)
                     if not info: continue
 
+                    parallax = info.get('parallax_factor', 1.0)
+
                     if info['type'] == 'static':
-                        self.platforms.add(Tile(x, y, self.resources.get_image(item_id)))
+                        self.platforms.add(Tile(x, y, self.resources.get_image(item_id), parallax))
                     elif info['type'] == 'decor':
-                        self.decors.add(Tile(x, y, self.resources.get_image(item_id)))
+                        self.decors.add(Tile(x, y, self.resources.get_image(item_id), parallax))
                     elif info['category'] == 'Weapons':
-                        self.items.add(WorldItem(x, y, item_id, self.resources.get_image(item_id)))
+                        self.items.add(WorldItem(x, y, item_id, self.resources.get_image(item_id), parallax))
                     elif info['type'] == 'entity':
                         entity = self.resources.spawn(item_id, x, y)
                         if entity:
+                            entity.parallax_factor = parallax # Ensure entities can have parallax if needed
                             if item_id == 'START': self.player = entity
                             else: self.entities.add(entity)
 

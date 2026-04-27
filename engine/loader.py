@@ -26,7 +26,8 @@ class ResourceManager:
             'Foundation_tiles': ('Foundation', 'static'),
             'Green_Grass': ('Green Grass', 'static'),
             'Purple_Grass': ('Purple Grass', 'static'),
-            'Props': ('Props', 'decor')
+            'Props': ('Props', 'decor'),
+            'Clouds': ('Props', 'decor')
         }
 
         for folder, (cat, p_type) in groups.items():
@@ -44,11 +45,16 @@ class ResourceManager:
                             'category': cat,
                             'name': f"{cat} {item_id}",
                             'asset': os.path.join(path, f),
-                            'type': p_type
+                            'type': p_type,
+                            'parallax_factor': 1.0 # Default parallax
                         }
 
         # 3. Pre-load images
         for item_id, info in self.registry.items():
+            # Ensure parallax_factor exists for JSON-loaded items too
+            if 'parallax_factor' not in info:
+                info['parallax_factor'] = 1.0
+            
             try:
                 img = pygame.image.load(info['asset']).convert_alpha()
                 img = pygame.transform.scale(img, (self.tile_size, self.tile_size))

@@ -74,6 +74,41 @@
         "shoot_type": "auto",
         "bullet_speed": 15
       }
+    },
+    "CLOUD_1": {
+      "category": "Props",
+      "name": "Slow Cloud",
+      "asset": "Assets/PNG/Interface/Tiles/tile_0153.png",
+      "type": "decor",
+      "parallax_factor": 0.3
+    },
+    "CLOUD_2": {
+      "category": "Props",
+      "name": "Fast Cloud",
+      "asset": "Assets/PNG/Interface/Tiles/tile_0154.png",
+      "type": "decor",
+      "parallax_factor": 0.6
+    },
+    "MOUNTAIN": {
+      "category": "Props",
+      "name": "Distant Mountain",
+      "asset": "Assets/PNG/Tiles/Tiles/10.png",
+      "type": "decor",
+      "parallax_factor": 0.1
+    },
+    "CLOUD_STORM": {
+      "category": "Props",
+      "name": "Storm Cloud",
+      "asset": "Assets/PNG/Tiles/Tiles/Clouds/cloud_storm.png",
+      "type": "decor",
+      "parallax_factor": 0.4
+    },
+    "CLOUD_WHITE": {
+      "category": "Props",
+      "name": "White Cloud",
+      "asset": "Assets/PNG/Tiles/Tiles/Clouds/cloud_white.png",
+      "type": "decor",
+      "parallax_factor": 0.2
     }
   }
 }
