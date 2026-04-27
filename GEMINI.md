@@ -17,6 +17,7 @@ The project is divided into three main layers:
 - **`physics.py`**: `PhysicsEntity` provides centralized gravity, collision, and terminal velocity logic.
 - **`animation.py`**: `AnimationManager` handles state-based frame cycling, flipping, and red-tinted damage flashes.
 - **`effects.py`**: `EffectManager` manages particles (muzzle flashes), screen shake, and projectile life-cycles.
+- **`parallax.py`**: `ParallaxManager` handles infinite looping background layers with dynamic scaling, intensity, and vertical offsets.
 - **`ui.py`**: `UIManager` handles professional HUD elements, including segmented dynamic health bars and icon-based counters.
 
 ### 2. Module Layer (`/modules`)
@@ -32,9 +33,11 @@ A professional-grade level creation tool featuring:
 - **Multi-Layer System**: Supports two distinct grid layers: `world` (solid tiles) and `entities` (props, players, enemies).
 - **Smart Stamping**: Automatically routes items to the correct layer based on their type (`static` vs `decor`/`entity`).
 - **Safety Systems**: Safe-Entry System (starts with no item selected) and Mouse Debounce (prevents accidental edits across states).
-- **Tool System**: Stamp and Erase modes (Left Click/Right Click).
+- **Tool System**: Stamp, Erase, and **Select** modes.
+- **Clipboard System**: **Ctrl + C** and **Ctrl + V** support for copying and pasting multi-layer regions (bug-proof top-to-bottom placement).
 - **Undo Engine**: 50-step history via **Ctrl + Z**.
 - **Dynamic Navigation**: Zoom (Ctrl + Scroll) and Panning (Middle Click).
+- **Settings Panel**: Real-time theme selection (Nature 1-8), parallax intensity sliders, and vertical background offsets.
 
 ## ✨ Juicy HUD Features
 - **Segmented Health Bar**: Stitched from `start`, `middle`, and `end` assets; dynamically clips to reflect current HP.
@@ -50,13 +53,15 @@ A professional-grade level creation tool featuring:
 | **Weapons** | `entity` | Spawns weapon modules (e.g., `P` for Pistol, `CT` for SMG). |
 | **Enemies** | `entity` | Spawns AI modules (e.g., `E_I` for Insect, `E_b` for Bee). |
 
-## 📁 Level Format (Composite CSV)
-Levels are saved as `.csv` files where each cell uses a semicolon-separated format: `TILE_ID;ENTITY_ID`.
-- `TILE_ID`: The ID of the item in the `world` layer (or `-1` for empty).
-- `ENTITY_ID`: The ID of the item in the `entities` layer (props, enemies, etc., or `-1`).
+## 📁 Level Format (Composite CSV + JSON)
+Levels are saved as a pair of files:
+1. **`.csv`**: Grid data where each cell uses `TILE_ID;ENTITY_ID`.
+2. **`.json`**: Metadata including `theme`, `parallax_intensity`, `parallax_y_offset`, and map dimensions.
 
 ## 🛠️ Upcoming Roadmap
-- [ ] **Sound System**: Implement `engine/sounds.py` and integrate existing `.ogg` assets for actions (jump, shoot, hurt).
-- [ ] **Level Metadata**: Transition from raw CSV to JSON for levels to store name, theme, and music data.
-- [ ] **Animation Expansion**: Add more animation states (hurt, death, reload) to player and enemies.
-- [ ] **Parallax Backgrounds**: Add support for layered scrolling backgrounds in the engine.
+- [ ] **Phase 1: Hazards & Springs**: Implement jumping springs and tile-based physics for Mud (friction) and Toxic Water (DoT).
+- [ ] **Phase 2: Traps & Crumbling**: Add explosive barrels with blast radius and unstable crumbling platforms.
+- [ ] **Phase 3: Moving Platforms**: Node-based pathing for elevators and mobile platforms.
+- [ ] **Phase 4: Advanced Combat**: Weapon-wielding AI (Gunners) and the **Stranger Merchant** (In-world shop system).
+- [ ] **Sound System**: Implement `engine/sounds.py` for jump, shoot, and hurt effects.
+- [ ] **Animation Expansion**: Add hurt, death, and reload states to all entities.
