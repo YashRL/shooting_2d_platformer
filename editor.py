@@ -28,6 +28,7 @@ INPUT_BG = (50, 50, 50)
 STATE_MENU = "menu"
 STATE_CREATE = "create"
 STATE_EDITING = "editing"
+STATE_SETTINGS = "settings"
 
 class LevelEditor:
     def __init__(self):
@@ -67,6 +68,11 @@ class LevelEditor:
         self.selected_category = "Tiles"
         self.selected_sub_category = "Concrete"
         self.selected_item = None
+        
+        # Level Settings
+        self.available_themes = [d for d in os.listdir("Assets/PNG/Backgrounds") if os.path.isdir(os.path.join("Assets/PNG/Backgrounds", d))]
+        self.current_theme = "nature_1"
+        self.parallax_intensity = 1.0
         
         self.current_tool = "stamp"
         self.undo_stack = []
@@ -172,10 +178,31 @@ class LevelEditor:
                     row.append(f"{self.grid_world[r][c]};{self.grid_entities[r][c]}")
                 combined.append(row)
             writer.writerows(combined)
-        print(f"Saved: {path}")
+        
+        # Save Metadata
+        meta_path = path.replace('.csv', '.json')
+        meta = {
+            "theme": self.current_theme,
+            "parallax_intensity": self.parallax_intensity,
+            "width": self.cols,
+            "height": self.rows
+        }
+        with open(meta_path, 'w') as f:
+            json.dump(meta, f, indent=4)
+            
+        print(f"Saved: {path} and Metadata")
 
     def load_scene(self, path):
         if not os.path.exists(path): return
+        
+        # Load Metadata first
+        meta_path = path.replace('.csv', '.json')
+        if os.path.exists(meta_path):
+            with open(meta_path, 'r') as f:
+                meta = json.load(f)
+                self.current_theme = meta.get("theme", "nature_1")
+                self.parallax_intensity = meta.get("parallax_intensity", 1.0)
+
         with open(path, "r") as f:
             reader = csv.reader(f)
             data = list(reader)
@@ -285,16 +312,18 @@ class LevelEditor:
         lvl_name = os.path.basename(self.current_level_path)
         self.screen.blit(self.bold_font.render(lvl_name.upper(), True, ACCENT), (20, 15))
         
-        btn_save, btn_menu = pygame.Rect(10, 50, UI_WIDTH//2 - 15, 30), pygame.Rect(UI_WIDTH//2 + 5, 50, UI_WIDTH//2 - 15, 30)
-        pygame.draw.rect(self.screen, LIGHT_GRAY, btn_save, border_radius=5); pygame.draw.rect(self.screen, LIGHT_GRAY, btn_menu, border_radius=5)
+        btn_save, btn_menu, btn_settings = pygame.Rect(10, 50, UI_WIDTH//3 - 10, 30), pygame.Rect(UI_WIDTH//3 + 5, 50, UI_WIDTH//3 - 10, 30), pygame.Rect(2*UI_WIDTH//3 + 5, 50, UI_WIDTH//3 - 15, 30)
+        pygame.draw.rect(self.screen, LIGHT_GRAY, btn_save, border_radius=5); pygame.draw.rect(self.screen, LIGHT_GRAY, btn_menu, border_radius=5); pygame.draw.rect(self.screen, LIGHT_GRAY, btn_settings, border_radius=5)
         self.screen.blit(self.small_font.render("SAVE", True, WHITE), self.small_font.render("SAVE", True, WHITE).get_rect(center=btn_save.center))
         self.screen.blit(self.small_font.render("MENU", True, WHITE), self.small_font.render("MENU", True, WHITE).get_rect(center=btn_menu.center))
+        self.screen.blit(self.small_font.render("SET", True, WHITE), self.small_font.render("SET", True, WHITE).get_rect(center=btn_settings.center))
         
         mx, my = pygame.mouse.get_pos()
         m_clicked = pygame.mouse.get_pressed()[0]
         if m_clicked and not self.mouse_debounce:
             if btn_save.collidepoint(mx, my): self.save_scene(self.current_level_path); pygame.time.wait(200)
             if btn_menu.collidepoint(mx, my): self.state = STATE_MENU; self.refresh_levels(); pygame.time.wait(200)
+            if btn_settings.collidepoint(mx, my): self.state = STATE_SETTINGS; pygame.time.wait(200)
         
         tool_y = 95
         stamp_btn, erase_btn = pygame.Rect(20, tool_y, UI_WIDTH//2-25, 25), pygame.Rect(UI_WIDTH//2+5, tool_y, UI_WIDTH//2-25, 25)
@@ -401,6 +430,52 @@ class LevelEditor:
             else: self.camera_offset += pygame.Vector2(mx - self.last_mouse_pos[0], my - self.last_mouse_pos[1]); self.last_mouse_pos = (mx, my)
         else: self.is_panning = False
 
+    def draw_settings_screen(self):
+        # Semi-transparent overlay
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 200))
+        self.screen.blit(overlay, (0, 0))
+        
+        panel_rect = pygame.Rect(SCREEN_WIDTH//2 - 300, SCREEN_HEIGHT//2 - 250, 600, 500)
+        pygame.draw.rect(self.screen, DARK_GRAY, panel_rect, border_radius=15)
+        pygame.draw.rect(self.screen, ACCENT, panel_rect, 2, border_radius=15)
+        
+        self.screen.blit(self.header_font.render("LEVEL SETTINGS", True, WHITE), (panel_rect.x + 30, panel_rect.y + 30))
+        
+        # Theme Selection
+        self.screen.blit(self.bold_font.render("BACKGROUND THEME", True, GRAY), (panel_rect.x + 30, panel_rect.y + 90))
+        mx, my = pygame.mouse.get_pos()
+        m_clicked = pygame.mouse.get_pressed()[0]
+        
+        for i, theme in enumerate(self.available_themes):
+            col, row = i % 4, i // 4
+            r = pygame.Rect(panel_rect.x + 30 + col * 135, panel_rect.y + 130 + row * 40, 120, 30)
+            color = ACCENT if self.current_theme == theme else LIGHT_GRAY
+            pygame.draw.rect(self.screen, color, r, border_radius=5)
+            self.screen.blit(self.small_font.render(theme.upper(), True, WHITE), self.small_font.render(theme.upper(), True, WHITE).get_rect(center=r.center))
+            if r.collidepoint(mx, my) and m_clicked and not self.mouse_debounce:
+                self.current_theme = theme
+                self.mouse_debounce = True
+
+        # Parallax Intensity
+        self.screen.blit(self.bold_font.render(f"PARALLAX INTENSITY: {self.parallax_intensity:.1f}", True, GRAY), (panel_rect.x + 30, panel_rect.y + 250))
+        slider_rect = pygame.Rect(panel_rect.x + 30, panel_rect.y + 290, 540, 10)
+        pygame.draw.rect(self.screen, BLACK, slider_rect, border_radius=5)
+        handle_x = slider_rect.x + (self.parallax_intensity / 2.0) * slider_rect.width
+        handle_rect = pygame.Rect(handle_x - 10, slider_rect.y - 10, 20, 30)
+        pygame.draw.rect(self.screen, ACCENT, handle_rect, border_radius=5)
+        
+        if slider_rect.inflate(0, 40).collidepoint(mx, my) and m_clicked:
+            self.parallax_intensity = max(0.0, min(2.0, (mx - slider_rect.x) / slider_rect.width * 2.0))
+
+        # Close Button
+        close_btn = pygame.Rect(panel_rect.centerx - 100, panel_rect.bottom - 70, 200, 45)
+        pygame.draw.rect(self.screen, (0, 150, 0), close_btn, border_radius=10)
+        self.screen.blit(self.bold_font.render("APPLY", True, WHITE), self.bold_font.render("APPLY", True, WHITE).get_rect(center=close_btn.center))
+        if close_btn.collidepoint(mx, my) and m_clicked and not self.mouse_debounce:
+            self.state = STATE_EDITING
+            self.mouse_debounce = True
+
     def run(self):
         while True:
             self.screen.fill(SKY_BLUE)
@@ -440,6 +515,7 @@ class LevelEditor:
             if self.state == STATE_MENU: self.draw_menu()
             elif self.state == STATE_CREATE: self.draw_create_screen()
             elif self.state == STATE_EDITING: self.handle_editing_input(); self.draw_grid(); self.draw_editing_ui()
+            elif self.state == STATE_SETTINGS: self.draw_grid(); self.draw_settings_screen()
             pygame.display.flip(); self.clock.tick(FPS)
 if __name__ == "__main__":
     LevelEditor().run()

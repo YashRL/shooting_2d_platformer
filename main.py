@@ -6,6 +6,7 @@ from engine.loader import ResourceManager
 from modules.world.tile import Tile
 from engine.effects import EffectManager
 from engine.ui import UIManager
+from engine.parallax import ParallaxManager
 
 # Constants
 SCREEN_WIDTH = 800
@@ -53,9 +54,21 @@ class Game:
         pygame.display.set_caption("TheTreeSentinal Engine by Yash - Juicy Combat")
         self.clock = pygame.time.Clock()
         
+        # Load Metadata
+        theme = "nature_1"
+        intensity = 1.0
+        meta_path = level_path.replace('.csv', '.json')
+        if os.path.exists(meta_path):
+            import json
+            with open(meta_path, 'r') as f:
+                meta = json.load(f)
+                theme = meta.get("theme", "nature_1")
+                intensity = meta.get("parallax_intensity", 1.0)
+
         self.resources = ResourceManager()
         self.effect_manager = EffectManager()
         self.ui_manager = UIManager()
+        self.parallax_manager = ParallaxManager(f"Assets/PNG/Backgrounds/{theme}", SCREEN_HEIGHT, intensity)
         
         self.platforms = pygame.sprite.Group()
         self.decors = pygame.sprite.Group() # New group for props
@@ -140,7 +153,7 @@ class Game:
             self.camera.update(self.player, self.effect_manager.get_shake_offset())
 
             # Draw
-            self.screen.fill((135, 206, 235))
+            self.parallax_manager.draw(self.screen, self.camera.camera.x)
             
             # 1. Draw decors (background props)
             for sprite in self.decors: self.screen.blit(sprite.image, self.camera.apply(sprite))
