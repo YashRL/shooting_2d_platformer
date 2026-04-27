@@ -157,10 +157,11 @@ class Game:
             # Draw
             self.parallax_manager.draw(self.screen, self.camera.camera.x)
             
-            # 1. Draw decors (background props)
-            for sprite in self.decors: self.screen.blit(sprite.image, self.camera.apply(sprite))
-            # 2. Draw platforms (solid tiles)
+            # 1. Draw platforms (solid tiles) - Base Layer
             for sprite in self.platforms: self.screen.blit(sprite.image, self.camera.apply(sprite))
+            
+            # 2. Draw decors (props like grass, clouds, etc) - Foreground/Detail Layer
+            for sprite in self.decors: self.screen.blit(sprite.image, self.camera.apply(sprite))
             
             for item in self.items: self.screen.blit(item.image, self.camera.apply(item))
             for entity in self.entities: self.screen.blit(entity.image, self.camera.apply(entity))

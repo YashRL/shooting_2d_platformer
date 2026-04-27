@@ -76,6 +76,10 @@ class LevelEditor:
         self.parallax_y_offset = 0
         
         self.current_tool = "stamp"
+        self.selection_start = None
+        self.selection_end = None
+        self.clipboard = None
+        
         self.undo_stack = []
         self.max_undo = 50
         self.mouse_debounce = False
@@ -252,6 +256,22 @@ class LevelEditor:
                     img = self.resources.get_image(val_e)
                     if img: self.screen.blit(pygame.transform.scale(img, (self.current_tile_size, self.current_tile_size)), (x, y))
 
+        # Draw Selection Box
+        if self.selection_start and self.selection_end:
+            x1, x2 = min(self.selection_start[0], self.selection_end[0]), max(self.selection_start[0], self.selection_end[0])
+            y1, y2 = min(self.selection_start[1], self.selection_end[1]), max(self.selection_start[1], self.selection_end[1])
+            
+            sel_rect = pygame.Rect(
+                self.camera_offset.x + x1 * self.current_tile_size,
+                self.camera_offset.y + y1 * self.current_tile_size,
+                (x2 - x1 + 1) * self.current_tile_size,
+                (y2 - y1 + 1) * self.current_tile_size
+            )
+            s = pygame.Surface((sel_rect.width, sel_rect.height), pygame.SRCALPHA)
+            s.fill((0, 255, 0, 100)) # Semi-transparent green
+            self.screen.blit(s, (sel_rect.x, sel_rect.y))
+            pygame.draw.rect(self.screen, HIGHLIGHT, sel_rect, 2)
+
     def draw_menu(self):
         self.screen.fill(DARK_GRAY)
         if pygame.time.get_ticks() - self.caret_timer > 500:
@@ -329,14 +349,17 @@ class LevelEditor:
             if btn_settings.collidepoint(mx, my): self.state = STATE_SETTINGS; pygame.time.wait(200)
         
         tool_y = 95
-        stamp_btn, erase_btn = pygame.Rect(20, tool_y, UI_WIDTH//2-25, 25), pygame.Rect(UI_WIDTH//2+5, tool_y, UI_WIDTH//2-25, 25)
+        stamp_btn, erase_btn, select_btn = pygame.Rect(10, tool_y, UI_WIDTH//3-12, 25), pygame.Rect(UI_WIDTH//3+5, tool_y, UI_WIDTH//3-12, 25), pygame.Rect(2*UI_WIDTH//3+5, tool_y, UI_WIDTH//3-15, 25)
         pygame.draw.rect(self.screen, ACCENT if self.current_tool == "stamp" else LIGHT_GRAY, stamp_btn, border_radius=5)
         pygame.draw.rect(self.screen, ACCENT if self.current_tool == "erase" else LIGHT_GRAY, erase_btn, border_radius=5)
+        pygame.draw.rect(self.screen, ACCENT if self.current_tool == "select" else LIGHT_GRAY, select_btn, border_radius=5)
         self.screen.blit(self.small_font.render("STAMP", True, WHITE), self.small_font.render("STAMP", True, WHITE).get_rect(center=stamp_btn.center))
         self.screen.blit(self.small_font.render("ERASE", True, WHITE), self.small_font.render("ERASE", True, WHITE).get_rect(center=erase_btn.center))
+        self.screen.blit(self.small_font.render("SELECT", True, WHITE), self.small_font.render("SELECT", True, WHITE).get_rect(center=select_btn.center))
         if m_clicked and not self.mouse_debounce:
-            if stamp_btn.collidepoint(mx, my): self.current_tool = "stamp"
-            if erase_btn.collidepoint(mx, my): self.current_tool = "erase"
+            if stamp_btn.collidepoint(mx, my): self.current_tool = "stamp"; self.selection_start = self.selection_end = None
+            if erase_btn.collidepoint(mx, my): self.current_tool = "erase"; self.selection_start = self.selection_end = None
+            if select_btn.collidepoint(mx, my): self.current_tool = "select"
 
         zoom_y = 135
         plus, minus, reset = pygame.Rect(20, zoom_y, 40, 25), pygame.Rect(70, zoom_y, 40, 25), pygame.Rect(120, zoom_y, 110, 25)
@@ -396,31 +419,56 @@ class LevelEditor:
         if play_rect.collidepoint(mx, my) and m_clicked and not self.mouse_debounce:
             self.save_scene(self.current_level_path); subprocess.Popen([sys.executable, "main.py", self.current_level_path]); pygame.time.wait(200)
 
+    def copy_selection(self):
+        if self.selection_start and self.selection_end:
+            x1, x2 = min(self.selection_start[0], self.selection_end[0]), max(self.selection_start[0], self.selection_end[0])
+            y1, y2 = min(self.selection_start[1], self.selection_end[1]), max(self.selection_start[1], self.selection_end[1])
+            
+            self.clipboard = {
+                'world': [[self.grid_world[y][x] for x in range(x1, x2 + 1)] for y in range(y1, y2 + 1)],
+                'entities': [[self.grid_entities[y][x] for x in range(x1, x2 + 1)] for y in range(y1, y2 + 1)]
+            }
+            print(f"Selection copied: {len(self.clipboard['world'][0])}x{len(self.clipboard['world'])}")
+
+    def paste_selection(self, gx, gy):
+        if self.clipboard:
+            self.save_state_for_undo()
+            for r, row in enumerate(self.clipboard['world']):
+                for c, val in enumerate(row):
+                    tr, tc = gy + r, gx + c
+                    if 0 <= tr < self.rows and 0 <= tc < self.cols:
+                        self.grid_world[tr][tc] = val
+                        self.grid_entities[tr][tc] = self.clipboard['entities'][r][c]
+            print("Selection pasted.")
+
     def handle_editing_input(self):
         mx, my = pygame.mouse.get_pos()
         m_keys = pygame.mouse.get_pressed()
         if not any(m_keys): self.mouse_debounce = False
         if self.mouse_debounce: return
+        
         if mx > UI_WIDTH:
             gx, gy = int((mx - self.camera_offset.x) // self.current_tile_size), int((my - self.camera_offset.y) // self.current_tile_size)
             if 0 <= gx < self.cols and 0 <= gy < self.rows:
-                if m_keys[0]: # Left Click (Stamp or Erase)
+                if m_keys[0]: # Left Click
                     if self.current_tool == "stamp":
                         if self.selected_item:
                             info = self.resources.registry[self.selected_item]
-                            # Route to correct layer
                             if info['type'] == 'static':
                                 if self.grid_world[gy][gx] != self.selected_item:
                                     self.save_state_for_undo(); self.grid_world[gy][gx] = self.selected_item
                             else:
                                 if self.grid_entities[gy][gx] != self.selected_item:
                                     self.save_state_for_undo(); self.grid_entities[gy][gx] = self.selected_item
-                    else: # Erase tool targets the active layer type
+                    elif self.current_tool == "erase":
                         target_is_tile = self.selected_category == "Tiles"
                         if target_is_tile:
                             if self.grid_world[gy][gx] != "-1": self.save_state_for_undo(); self.grid_world[gy][gx] = "-1"
                         else:
                             if self.grid_entities[gy][gx] != "-1": self.save_state_for_undo(); self.grid_entities[gy][gx] = "-1"
+                    elif self.current_tool == "select":
+                        if not self.selection_start: self.selection_start = (gx, gy)
+                        self.selection_end = (gx, gy)
                 
                 if m_keys[2]: # Right Click always erases both (Fast clear)
                     if self.grid_world[gy][gx] != "-1" or self.grid_entities[gy][gx] != "-1":
@@ -521,6 +569,11 @@ class LevelEditor:
                         if mods & pygame.KMOD_CTRL:
                             if event.key == pygame.K_s: self.save_scene(self.current_level_path)
                             if event.key == pygame.K_z: self.undo()
+                            if event.key == pygame.K_c: self.copy_selection()
+                            if event.key == pygame.K_v: 
+                                mx, my = pygame.mouse.get_pos()
+                                gx, gy = int((mx - self.camera_offset.x) // self.current_tile_size), int((my - self.camera_offset.y) // self.current_tile_size)
+                                self.paste_selection(gx, gy)
                         if event.key == pygame.K_m: self.state = STATE_MENU; self.refresh_levels()
                 if event.type == pygame.MOUSEWHEEL:
                     mx, my = pygame.mouse.get_pos()
