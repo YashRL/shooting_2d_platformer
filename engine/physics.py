@@ -27,7 +27,7 @@ class PhysicsEntity(pygame.sprite.Sprite):
             if sprite.rect.colliderect(self.rect):
                 if direction == 'horizontal':
                     if self.vel.x > 0: self.rect.right = sprite.rect.left
-                    if self.vel.x < 0: self.rect.left = sprite.rect.right
+                    elif self.vel.x < 0: self.rect.left = sprite.rect.right
                     self.pos.x = self.rect.x
                     self.vel.x = 0
                 elif direction == 'vertical':
@@ -35,7 +35,12 @@ class PhysicsEntity(pygame.sprite.Sprite):
                         self.rect.bottom = sprite.rect.top
                         self.on_ground = True
                         self.vel.y = 0
+                        # Move with platform horizontal velocity
+                        if hasattr(sprite, 'vel'):
+                            self.pos.x += sprite.vel.x
                     elif self.vel.y < 0:
                         self.rect.top = sprite.rect.bottom
                         self.vel.y = 0
+                    
                     self.pos.y = self.rect.y
+                    self.rect.y = round(self.pos.y)

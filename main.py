@@ -98,13 +98,14 @@ class Game:
                 x, y = c * 36, r * 36
 
                 # Split cell into World and Entity layers
-                parts = cell.split(';')
+                parts = cell.split(';', 1)
                 ids_to_spawn = parts if len(parts) > 1 else [cell]
 
                 for item_id in ids_to_spawn:
                     if item_id == '-1': continue
 
-                    info = self.resources.registry.get(item_id)
+                    actual_id = item_id.split('[')[0] if '[' in item_id else item_id
+                    info = self.resources.registry.get(actual_id)
                     if not info: continue
 
                     parallax = info.get('parallax_factor', 1.0)
@@ -114,13 +115,18 @@ class Game:
                     elif info['type'] == 'decor':
                         self.decors.add(Tile(x, y, self.resources.get_image(item_id), parallax))
                     elif info['category'] == 'Weapons':
-                        self.items.add(WorldItem(x, y, item_id, self.resources.get_image(item_id), parallax))
+                        self.items.add(WorldItem(x, y, actual_id, self.resources.get_image(item_id), parallax))
                     elif info['type'] == 'entity':
                         entity = self.resources.spawn(item_id, x, y)
                         if entity:
-                            entity.parallax_factor = parallax # Ensure entities can have parallax if needed
-                            if item_id == 'START': self.player = entity
-                            else: self.entities.add(entity)
+                            entity.parallax_factor = parallax
+                            if actual_id == 'START': 
+                                self.player = entity
+                                # Do NOT add player to self.entities to avoid double update
+                            else:
+                                if actual_id == 'MOVING_PLATFORM':
+                                    self.platforms.add(entity)
+                                self.entities.add(entity)
 
         if not self.player:
             self.player = self.resources.spawn('START', 100, 100)
@@ -132,7 +138,8 @@ class Game:
                     pygame.quit(); sys.exit()
 
             # Update
-            self.player.update(self.platforms, self.effect_manager, self.items)
+            self.player.update(self.platforms, self.effect_manager, self.items, resources=self.resources)
+            self.platforms.update() # Update moving platforms
             self.entities.update(self.platforms, player_rect=self.player.rect)
             self.effect_manager.update()
             
@@ -164,7 +171,9 @@ class Game:
             for sprite in self.decors: self.screen.blit(sprite.image, self.camera.apply(sprite))
             
             for item in self.items: self.screen.blit(item.image, self.camera.apply(item))
-            for entity in self.entities: self.screen.blit(entity.image, self.camera.apply(entity))
+            for entity in self.entities: 
+                if entity not in self.platforms:
+                    self.screen.blit(entity.image, self.camera.apply(entity))
             
             self.effect_manager.draw(self.screen, self.camera)
             self.player.draw(self.screen, self.camera)

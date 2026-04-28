@@ -3,7 +3,7 @@
     "tile_size": 36,
     "gravity": 0.8
   },
-  "categories": ["Tiles", "Players", "Enemies", "Weapons", "Props"],
+  "categories": ["Tiles", "Players", "Enemies", "Weapons", "Props", "Platforms"],
   "items": {
     "1": {
       "category": "Purple Grass",
@@ -109,6 +109,18 @@
       "asset": "Assets/PNG/Tiles/Tiles/Clouds/cloud_white.png",
       "type": "decor",
       "parallax_factor": 0.2
+    },
+    "MOVING_PLATFORM": {
+      "category": "Platforms",
+      "name": "Moving Platform",
+      "asset": "Assets/PNG/Tiles/Tiles/Green_Grass/6.png",
+      "type": "entity",
+      "module": "modules.world.moving_platform",
+      "class": "MovingPlatform",
+      "properties": {
+        "speed": 2.0,
+        "loop": true
+      }
     }
   }
 }

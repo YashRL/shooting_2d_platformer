@@ -66,7 +66,7 @@ class FoxPlayer(PhysicsEntity):
             self.pos = pygame.Vector2(100, 100)
             self.rect.topleft = (100, 100)
 
-    def handle_input(self, effect_manager, items_group):
+    def handle_input(self, effect_manager, items_group, resources=None):
         if self.is_hit and pygame.time.get_ticks() - self.hit_timer < 200: 
             return # Locked out of input during initial knockback
 
@@ -108,7 +108,8 @@ class FoxPlayer(PhysicsEntity):
 
         if keys[pygame.K_e]:
             if not self.interact_pressed:
-                self.check_pickup(items_group)
+                if resources:
+                    self.check_pickup(items_group, resources)
                 self.interact_pressed = True
         else: self.interact_pressed = False
 
@@ -124,14 +125,12 @@ class FoxPlayer(PhysicsEntity):
             weapon.current_ammo -= 1
             weapon.last_fire_time = pygame.time.get_ticks()
 
-    def check_pickup(self, items_group):
+    def check_pickup(self, items_group, resources):
         hits = pygame.sprite.spritecollide(self, items_group, False)
         for item in hits:
             for i in range(2):
                 if self.weapon_slots[i] is None:
-                    from engine.loader import ResourceManager
-                    rm = ResourceManager() 
-                    weapon_logic = rm.spawn(item.item_id, 0, 0)
+                    weapon_logic = resources.spawn(item.item_id, 0, 0)
                     if weapon_logic:
                         self.weapon_slots[i] = weapon_logic
                         item.kill()
@@ -142,7 +141,8 @@ class FoxPlayer(PhysicsEntity):
             if pygame.time.get_ticks() - self.hit_timer > self.hit_duration:
                 self.is_hit = False
                 
-        self.handle_input(effect_manager, items_group)
+        resources = kwargs.get('resources')
+        self.handle_input(effect_manager, items_group, resources)
         self.apply_physics(platforms)
         
         weapon = self.weapon_slots[self.active_slot]

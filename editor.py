@@ -63,7 +63,7 @@ class LevelEditor:
         self.caret_index = 0
         
         # Multi-Layer Editing State
-        self.main_categories = ["Tiles", "Props", "Players", "Enemies", "Weapons"]
+        self.main_categories = ["Tiles", "Props", "Players", "Enemies", "Weapons", "Platforms"]
         self.tile_sub_categories = ["Concrete", "Foundation", "Green Grass", "Purple Grass"]
         self.selected_category = "Tiles"
         self.selected_sub_category = "Concrete"
@@ -97,6 +97,12 @@ class LevelEditor:
         self.camera_offset = pygame.Vector2(UI_WIDTH + 20, 50)
         self.is_panning = False
         self.last_mouse_pos = (0,0)
+        
+        # Moving Platform Node Placement
+        self.node_buffer = []
+        self.placing_nodes_for = None # (gx, gy)
+        self.platform_speed = "2.0"
+        self.platform_loop = True
 
     def refresh_levels(self):
         if os.path.exists(self.levels_dir):
@@ -221,7 +227,7 @@ class LevelEditor:
                 for c in range(self.cols):
                     cell = data[r][c]
                     if ';' in cell:
-                        w, e = cell.split(';')
+                        w, e = cell.split(';', 1)
                         self.grid_world[r][c] = w
                         self.grid_entities[r][c] = e
                     else:
@@ -252,9 +258,33 @@ class LevelEditor:
                     if img: self.screen.blit(pygame.transform.scale(img, (self.current_tile_size, self.current_tile_size)), (x, y))
                 
                 if val_e != '-1':
-                    info = self.resources.registry.get(val_e)
+                    actual_id = val_e.split('[')[0] if '[' in val_e else val_e
+                    info = self.resources.registry.get(actual_id)
                     img = self.resources.get_image(val_e)
-                    if img: self.screen.blit(pygame.transform.scale(img, (self.current_tile_size, self.current_tile_size)), (x, y))
+                    if img:
+                        w_scale = self.current_tile_size
+                        if actual_id == "MOVING_PLATFORM":
+                            # Draw 2 tiles wide
+                            w_scale = self.current_tile_size * 2
+                            # Also optionally draw nodes if it's the selected item or always?
+                            # For "careful" implementation, let's always show a hint of path if selected.
+                        
+                        self.screen.blit(pygame.transform.scale(img, (w_scale, self.current_tile_size)), (x, y))
+                        
+                        # Extra visual for Moving Platform nodes
+                        if actual_id == "MOVING_PLATFORM" and '[' in val_e:
+                            props_str = val_e.split('[')[1][:-1]
+                            # Robust split: handles legacy ';' and new '&'
+                            pairs = props_str.replace(';', '&').split('&')
+                            for pair in pairs:
+                                if pair.startswith('nodes:'):
+                                    nodes_raw = pair.split(':')[1]
+                                    for node_raw in nodes_raw.split('|'):
+                                        if ',' in node_raw:
+                                            nx, ny = map(int, node_raw.split(','))
+                                            snx = self.camera_offset.x + (nx / TILE_SIZE) * self.current_tile_size
+                                            sny = self.camera_offset.y + (ny / TILE_SIZE) * self.current_tile_size
+                                            pygame.draw.circle(self.screen, ACCENT, (int(snx), int(sny)), 3)
 
         # Draw Selection Box
         if self.selection_start and self.selection_end:
@@ -271,6 +301,23 @@ class LevelEditor:
             s.fill((0, 255, 0, 100)) # Semi-transparent green
             self.screen.blit(s, (sel_rect.x, sel_rect.y))
             pygame.draw.rect(self.screen, HIGHLIGHT, sel_rect, 2)
+
+        # Draw Node Placement Feedback
+        if self.placing_nodes_for:
+            for i, node in enumerate(self.node_buffer):
+                nx, ny = node
+                screen_x = self.camera_offset.x + (nx / TILE_SIZE) * self.current_tile_size
+                screen_y = self.camera_offset.y + (ny / TILE_SIZE) * self.current_tile_size
+                pygame.draw.circle(self.screen, ACCENT, (int(screen_x), int(screen_y)), 5)
+                self.screen.blit(self.small_font.render(f"Node {i+1}", True, WHITE), (screen_x + 10, screen_y - 10))
+            
+            # Draw line to current mouse position for next node
+            if self.node_buffer:
+                mx, my = pygame.mouse.get_pos()
+                last_node = self.node_buffer[-1]
+                last_x = self.camera_offset.x + (last_node[0] / TILE_SIZE) * self.current_tile_size
+                last_y = self.camera_offset.y + (last_node[1] / TILE_SIZE) * self.current_tile_size
+                pygame.draw.line(self.screen, ACCENT, (last_x, last_y), (mx, my), 1)
 
     def draw_menu(self):
         self.screen.fill(DARK_GRAY)
@@ -383,7 +430,11 @@ class LevelEditor:
             self.screen.blit(self.small_font.render(cat, True, WHITE), self.small_font.render(cat, True, WHITE).get_rect(center=r.center))
             if r.collidepoint(mx, my) and m_clicked and not self.mouse_debounce: 
                 self.selected_category, self.edit_scroll_y = cat, 0
+                self.selected_item = None
+                self.placing_nodes_for = None
+                self.node_buffer = []
                 if cat != "Tiles": self.selected_sub_category = None
+                self.mouse_debounce = True
 
         item_start_y = cat_y + ((len(self.main_categories) + 1) // 2) * 30 + 10
         if self.selected_category == "Tiles":
@@ -409,9 +460,41 @@ class LevelEditor:
             x, y = padding + col * (box_size + padding), item_start_y + row * (box_size + padding) - self.edit_scroll_y
             if y < item_start_y or y > SCREEN_HEIGHT - 60: continue
             r = pygame.Rect(x, y, box_size, box_size)
+            
+            # Draw Item Image
+            img = self.resources.get_image(item_id)
+            if img:
+                actual_id = item_id.split('[')[0] if '[' in item_id else item_id
+                w_disp = box_size
+                if actual_id == "MOVING_PLATFORM":
+                    w_disp = box_size * 1.8 # Show it wider but slightly smaller than 2x to fit nicely
+                
+                self.screen.blit(pygame.transform.scale(img, (int(w_disp), box_size)), (x, y))
+
             if self.selected_item == item_id: pygame.draw.rect(self.screen, HIGHLIGHT, r.inflate(6, 6), 2, border_radius=5)
-            self.screen.blit(pygame.transform.scale(self.resources.get_image(item_id), (box_size, box_size)), (x, y))
             if r.collidepoint(mx, my) and m_clicked and not self.mouse_debounce: self.selected_item = item_id
+
+        # Moving Platform Speed Input
+        if self.selected_item == "MOVING_PLATFORM":
+            speed_y = item_start_y + ((len(items) + cols - 1) // cols) * (box_size + padding) + 10
+            self.screen.blit(self.small_font.render("PLATFORM SPEED:", True, GRAY), (20, speed_y))
+            r = pygame.Rect(20, speed_y + 20, UI_WIDTH - 40, 25)
+            pygame.draw.rect(self.screen, INPUT_BG, r, border_radius=5)
+            pygame.draw.rect(self.screen, ACCENT if self.active_input == "speed" else LIGHT_GRAY, r, 1, border_radius=5)
+            self.screen.blit(self.small_font.render(self.platform_speed, True, WHITE), (r.x + 10, r.y + 5))
+            if r.collidepoint(mx, my) and m_clicked: self.active_input, self.caret_index = "speed", len(self.platform_speed)
+
+            # Loop Toggle
+            loop_y = speed_y + 55
+            self.screen.blit(self.small_font.render("LOOP CONTINUOUSLY:", True, GRAY), (20, loop_y))
+            checkbox_rect = pygame.Rect(UI_WIDTH - 40, loop_y - 2, 20, 20)
+            pygame.draw.rect(self.screen, INPUT_BG, checkbox_rect, border_radius=4)
+            pygame.draw.rect(self.screen, ACCENT if self.platform_loop else LIGHT_GRAY, checkbox_rect, 1, border_radius=4)
+            if self.platform_loop:
+                pygame.draw.rect(self.screen, ACCENT, checkbox_rect.inflate(-8, -8), border_radius=2)
+            if checkbox_rect.collidepoint(mx, my) and m_clicked and not self.mouse_debounce:
+                self.platform_loop = not self.platform_loop
+                self.mouse_debounce = True
 
         play_rect = pygame.Rect(20, SCREEN_HEIGHT - 50, UI_WIDTH - 40, 35)
         pygame.draw.rect(self.screen, (0, 150, 0), play_rect, border_radius=8)
@@ -453,6 +536,26 @@ class LevelEditor:
                 if m_keys[0]: # Left Click
                     if self.current_tool == "stamp":
                         if self.selected_item:
+                            if self.selected_item == "MOVING_PLATFORM":
+                                if self.placing_nodes_for is None:
+                                    self.placing_nodes_for = (gx, gy)
+                                    self.node_buffer = [(gx * TILE_SIZE, gy * TILE_SIZE)]
+                                    self.mouse_debounce = True
+                                elif len(self.node_buffer) < 3:
+                                    self.node_buffer.append((gx * TILE_SIZE, gy * TILE_SIZE))
+                                    self.mouse_debounce = True
+                                    if len(self.node_buffer) == 3:
+                                        # Finished placing nodes
+                                        px, py = self.placing_nodes_for
+                                        nodes_str = "|".join([f"{nx},{ny}" for nx, ny in self.node_buffer])
+                                        loop_str = "true" if self.platform_loop else "false"
+                                        entity_data = f"MOVING_PLATFORM[nodes:{nodes_str}&speed:{self.platform_speed}&loop:{loop_str}]"
+                                        self.save_state_for_undo()
+                                        self.grid_entities[py][px] = entity_data
+                                        self.placing_nodes_for = None
+                                        self.node_buffer = []
+                                return
+
                             info = self.resources.registry[self.selected_item]
                             if info['type'] == 'static':
                                 if self.grid_world[gy][gx] != self.selected_item:
@@ -460,6 +563,7 @@ class LevelEditor:
                             else:
                                 if self.grid_entities[gy][gx] != self.selected_item:
                                     self.save_state_for_undo(); self.grid_entities[gy][gx] = self.selected_item
+                                    self.mouse_debounce = True # Prevent entity spam
                     elif self.current_tool == "erase":
                         target_is_tile = self.selected_category == "Tiles"
                         if target_is_tile:
@@ -566,6 +670,7 @@ class LevelEditor:
                         if event.key == pygame.K_TAB: order = ["name", "width", "height"]; self.active_input = order[(order.index(self.active_input)+1)%3]; self.caret_index = len(getattr(self, f"new_level_{self.active_input}"))
                         else: attr = f"new_level_{self.active_input}"; setattr(self, attr, self.handle_text_input(getattr(self, attr), event))
                     elif self.state == STATE_EDITING:
+                        if self.active_input == "speed": self.platform_speed = self.handle_text_input(self.platform_speed, event)
                         if mods & pygame.KMOD_CTRL:
                             if event.key == pygame.K_s: self.save_scene(self.current_level_path)
                             if event.key == pygame.K_z: self.undo()

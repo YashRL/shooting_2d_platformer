@@ -66,8 +66,32 @@ class ResourceManager:
                 self.images[item_id] = surf
 
     def spawn(self, item_id, x, y, **kwargs):
-        if item_id not in self.registry: return None
-        info = self.registry[item_id]
+        # Handle per-instance properties: ID[prop1:val1,prop2:val2]
+        instance_props = {}
+        actual_id = item_id
+        if '[' in item_id and item_id.endswith(']'):
+            actual_id = item_id.split('[')[0]
+            props_str = item_id.split('[')[1][:-1]
+            # Handle both legacy ';' and new '&'
+            for pair in props_str.replace(';', '&').split('&'):
+                if ':' in pair:
+                    k, v = pair.split(':')
+                    # Parse specific types if needed
+                    if k == 'nodes':
+                        # nodes:x1,y1|x2,y2
+                        nodes = []
+                        for node_str in v.split('|'):
+                            if ',' in node_str:
+                                nx, ny = node_str.split(',')
+                                nodes.append((int(nx), int(ny)))
+                        instance_props[k] = nodes
+                    elif k == 'speed':
+                        instance_props[k] = float(v)
+                    else:
+                        instance_props[k] = v
+
+        if actual_id not in self.registry: return None
+        info = self.registry[actual_id]
         if info['type'] in ['static', 'decor']: return None
             
         module_path = info.get('module')
@@ -78,11 +102,13 @@ class ResourceManager:
             module = importlib.import_module(module_path)
             cls = getattr(module, class_name)
             properties = info.get('properties', {}).copy()
+            properties.update(instance_props)
             properties.update(kwargs)
             return cls(x, y, properties)
         except Exception as e:
-            print(f"Failed to spawn {item_id}: {e}")
+            print(f"Failed to spawn {actual_id}: {e}")
             return None
 
     def get_image(self, item_id):
-        return self.images.get(item_id)
+        actual_id = item_id.split('[')[0] if '[' in item_id else item_id
+        return self.images.get(actual_id)
