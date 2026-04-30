@@ -8,7 +8,7 @@
     "MERCHANT": {
       "category": "Characters",
       "name": "Merchant",
-      "asset": "Assets/PNG/Characters/Merchant/frames/base_idle/1.png",
+      "asset": "Assets/PNG/Characters/Merchant/frames/base_idle_styled/1.png",
       "type": "entity",
       "module": "modules.characters.merchant",
       "class": "Merchant"
