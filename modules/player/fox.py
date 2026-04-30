@@ -29,6 +29,10 @@ class FoxPlayer(PhysicsEntity):
         self.is_jumping = False
         self.interact_pressed = False
         
+        # Poison Timer
+        self.poison_timer = 0
+        self.poison_interval = 5000 # 5 seconds
+        
         self.load_animations()
         self.rect = self.animations.get_current_frame().get_rect(topleft=(x, y))
 
@@ -47,13 +51,14 @@ class FoxPlayer(PhysicsEntity):
     def take_damage(self, amount, source_rect):
         if self.is_hit: return
         
+        print(f"[DEBUG] Fox taking {amount} damage from {source_rect}")
         self.hp -= amount
         self.is_hit = True
         self.hit_timer = pygame.time.get_ticks()
         
         # Knockback
         knockback_force = 8
-        if source_rect.centerx < self.rect.centerx:
+        if source_rect and source_rect.centerx < self.rect.centerx:
             self.vel.x = knockback_force
         else:
             self.vel.x = -knockback_force
@@ -65,6 +70,7 @@ class FoxPlayer(PhysicsEntity):
             self.hp = self.max_hp
             self.pos = pygame.Vector2(100, 100)
             self.rect.topleft = (100, 100)
+            print("[DEBUG] Fox Respawning...")
 
     def handle_input(self, effect_manager, items_group, resources=None):
         if self.is_hit and pygame.time.get_ticks() - self.hit_timer < 200: 
@@ -144,6 +150,23 @@ class FoxPlayer(PhysicsEntity):
         resources = kwargs.get('resources')
         self.handle_input(effect_manager, items_group, resources)
         self.apply_physics(platforms)
+        
+        # Hazard Damage Logic (Poison)
+        current_time = pygame.time.get_ticks()
+        # Inflate rect slightly to detect tiles we are standing on or walking against
+        detect_rect = self.rect.inflate(4, 4)
+        hits = [p for p in platforms if p.rect.colliderect(detect_rect)]
+        
+        for tile in hits:
+            if hasattr(tile, 'damage') and tile.damage > 0:
+                # Log detection of contact
+                if current_time % 1000 < 20: # Log roughly once per second to avoid spam
+                    print(f"[DEBUG] Contact with damaging tile at {tile.rect.topleft}. HP: {self.hp}, Grounded: {self.on_ground}")
+                
+                if current_time - self.poison_timer > self.poison_interval:
+                    self.take_damage(tile.damage, tile.rect)
+                    self.poison_timer = current_time
+                break 
         
         weapon = self.weapon_slots[self.active_slot]
         if weapon: weapon.update()

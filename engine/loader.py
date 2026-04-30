@@ -41,12 +41,17 @@ class ResourceManager:
                         # NOTE: If numbers overlap between folders, we should use 'Folder_ID'
                         full_id = f"{folder}_{item_id}" 
                         
+                        damage_val = 1 if cat == 'Purple Grass' else 0
+                        if damage_val > 0:
+                            print(f"[DEBUG] Tile {full_id} assigned damage: {damage_val}")
+                        
                         self.registry[full_id] = {
                             'category': cat,
                             'name': f"{cat} {item_id}",
                             'asset': os.path.join(path, f),
                             'type': p_type,
-                            'parallax_factor': 1.0 # Default parallax
+                            'parallax_factor': 1.0,
+                            'damage': damage_val
                         }
 
         # 3. Pre-load images

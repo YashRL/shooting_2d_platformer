@@ -9,7 +9,8 @@
       "category": "Purple Grass",
       "name": "Grass",
       "asset": "Assets/PNG/Tiles/Tiles/Purple_Grass/1.png",
-      "type": "static"
+      "type": "static",
+      "damage": 1
     },
     "48": {
       "category": "Concrete",

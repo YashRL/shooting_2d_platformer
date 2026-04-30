@@ -111,7 +111,7 @@ class Game:
                     parallax = info.get('parallax_factor', 1.0)
 
                     if info['type'] == 'static':
-                        self.platforms.add(Tile(x, y, self.resources.get_image(item_id), parallax))
+                        self.platforms.add(Tile(x, y, self.resources.get_image(item_id), parallax, damage=info.get('damage', 0)))
                     elif info['type'] == 'decor':
                         self.decors.add(Tile(x, y, self.resources.get_image(item_id), parallax))
                     elif info['category'] == 'Weapons':
