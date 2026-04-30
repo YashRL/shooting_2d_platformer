@@ -138,8 +138,8 @@ class Game:
                     pygame.quit(); sys.exit()
 
             # Update
+            self.platforms.update() # Update moving platforms first
             self.player.update(self.platforms, self.effect_manager, self.items, resources=self.resources)
-            self.platforms.update() # Update moving platforms
             self.entities.update(self.platforms, player_rect=self.player.rect)
             self.effect_manager.update()
             

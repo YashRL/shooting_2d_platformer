@@ -38,6 +38,7 @@ class MovingPlatform(pygame.sprite.Sprite):
         if len(self.nodes) < 2:
             return
 
+        old_pos = pygame.Vector2(self.pos)
         target = pygame.Vector2(self.nodes[self.target_node_idx])
         direction = target - self.pos
         distance = direction.length()
@@ -47,14 +48,13 @@ class MovingPlatform(pygame.sprite.Sprite):
             move_step = direction * self.speed
             if move_step.length() > distance:
                 self.pos = target
-                self.vel = pygame.Vector2(0, 0)
                 self.advance_node()
             else:
                 self.pos += move_step
-                self.vel = move_step
         else:
             self.advance_node()
 
+        self.vel = self.pos - old_pos
         self.rect.topleft = (round(self.pos.x), round(self.pos.y))
 
     def advance_node(self):
