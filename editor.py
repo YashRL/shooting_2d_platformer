@@ -172,6 +172,23 @@ class LevelEditor:
             self.enter_editing_state()
         except: pass
 
+    def resize_level(self, new_cols, new_rows):
+        # Preservation logic: Create new grids and copy old data
+        new_world = [['-1' for _ in range(new_cols)] for _ in range(new_rows)]
+        new_entities = [['-1' for _ in range(new_cols)] for _ in range(new_rows)]
+        
+        for r in range(min(self.rows, new_rows)):
+            for c in range(min(self.cols, new_cols)):
+                new_world[r][c] = self.grid_world[r][c]
+                new_entities[r][c] = self.grid_entities[r][c]
+        
+        self.save_state_for_undo()
+        self.grid_world = new_world
+        self.grid_entities = new_entities
+        self.rows = new_rows
+        self.cols = new_cols
+        print(f"Level Resized to {new_cols}x{new_rows}")
+
     def load_level_from_menu(self, filename):
         path = os.path.join(self.levels_dir, filename)
         self.load_scene(path)
@@ -221,6 +238,7 @@ class LevelEditor:
             data = list(reader)
             if not data: return
             self.rows, self.cols = len(data), len(data[0])
+            self.new_level_width, self.new_level_height = str(self.cols), str(self.rows)
             self.grid_world = [['-1' for _ in range(self.cols)] for _ in range(self.rows)]
             self.grid_entities = [['-1' for _ in range(self.cols)] for _ in range(self.rows)]
             for r in range(self.rows):
@@ -565,11 +583,12 @@ class LevelEditor:
                                     self.save_state_for_undo(); self.grid_entities[gy][gx] = self.selected_item
                                     self.mouse_debounce = True # Prevent entity spam
                     elif self.current_tool == "erase":
-                        target_is_tile = self.selected_category == "Tiles"
-                        if target_is_tile:
-                            if self.grid_world[gy][gx] != "-1": self.save_state_for_undo(); self.grid_world[gy][gx] = "-1"
-                        else:
-                            if self.grid_entities[gy][gx] != "-1": self.save_state_for_undo(); self.grid_entities[gy][gx] = "-1"
+                        # FIX: Eraser now clears both layers regardless of selected category.
+                        # This ensures 'saved entities' or props can be erased even if a Tile category is active.
+                        if self.grid_world[gy][gx] != "-1" or self.grid_entities[gy][gx] != "-1":
+                            self.save_state_for_undo()
+                            self.grid_world[gy][gx] = "-1"
+                            self.grid_entities[gy][gx] = "-1"
                     elif self.current_tool == "select":
                         if not self.selection_start: self.selection_start = (gx, gy)
                         self.selection_end = (gx, gy)
@@ -591,20 +610,57 @@ class LevelEditor:
         overlay.fill((0, 0, 0, 200))
         self.screen.blit(overlay, (0, 0))
         
-        panel_rect = pygame.Rect(SCREEN_WIDTH//2 - 300, SCREEN_HEIGHT//2 - 250, 600, 500)
+        panel_rect = pygame.Rect(SCREEN_WIDTH//2 - 300, SCREEN_HEIGHT//2 - 350, 600, 700)
         pygame.draw.rect(self.screen, DARK_GRAY, panel_rect, border_radius=15)
         pygame.draw.rect(self.screen, ACCENT, panel_rect, 2, border_radius=15)
         
         self.screen.blit(self.header_font.render("LEVEL SETTINGS", True, WHITE), (panel_rect.x + 30, panel_rect.y + 30))
         
+        # Level Dimensions
+        self.screen.blit(self.bold_font.render("DIMENSIONS (COLS x ROWS)", True, GRAY), (panel_rect.x + 30, panel_rect.y + 90))
+        dim_w_rect = pygame.Rect(panel_rect.x + 30, panel_rect.y + 130, 100, 35)
+        dim_h_rect = pygame.Rect(panel_rect.x + 150, panel_rect.y + 130, 100, 35)
+        
+        pygame.draw.rect(self.screen, INPUT_BG, dim_w_rect, border_radius=5)
+        pygame.draw.rect(self.screen, INPUT_BG, dim_h_rect, border_radius=5)
+        pygame.draw.rect(self.screen, ACCENT if self.active_input == "edit_width" else LIGHT_GRAY, dim_w_rect, 1, border_radius=5)
+        pygame.draw.rect(self.screen, ACCENT if self.active_input == "edit_height" else LIGHT_GRAY, dim_h_rect, 1, border_radius=5)
+        
+        self.screen.blit(self.font.render(str(self.new_level_width), True, WHITE), (dim_w_rect.x + 15, dim_w_rect.y + 5))
+        self.screen.blit(self.font.render(str(self.new_level_height), True, WHITE), (dim_h_rect.x + 15, dim_h_rect.y + 5))
+        self.screen.blit(self.font.render("x", True, GRAY), (dim_w_rect.right + 5, dim_w_rect.y + 5))
+
         # Theme Selection
-        self.screen.blit(self.bold_font.render("BACKGROUND THEME", True, GRAY), (panel_rect.x + 30, panel_rect.y + 90))
+        self.screen.blit(self.bold_font.render("BACKGROUND THEME", True, GRAY), (panel_rect.x + 30, panel_rect.y + 190))
         mx, my = pygame.mouse.get_pos()
         m_clicked = pygame.mouse.get_pressed()[0]
         
+        if m_clicked and not self.mouse_debounce:
+            if dim_w_rect.collidepoint(mx, my): 
+                self.active_input = "edit_width"
+                self.caret_index = self.get_caret_from_mouse(mx, dim_w_rect.x, str(self.new_level_width))
+                self.mouse_debounce = True
+            if dim_h_rect.collidepoint(mx, my): 
+                self.active_input = "edit_height"
+                self.caret_index = self.get_caret_from_mouse(mx, dim_h_rect.x, str(self.new_level_height))
+                self.mouse_debounce = True
+
+        # Draw Carets
+        if pygame.time.get_ticks() - self.caret_timer > 500:
+            self.caret_visible = not self.caret_visible
+            self.caret_timer = pygame.time.get_ticks()
+
+        if self.caret_visible:
+            if self.active_input == "edit_width":
+                w, _ = self.font.size(str(self.new_level_width)[:self.caret_index])
+                pygame.draw.line(self.screen, WHITE, (dim_w_rect.x + 15 + w, dim_w_rect.y + 5), (dim_w_rect.x + 15 + w, dim_w_rect.y + 30), 2)
+            elif self.active_input == "edit_height":
+                w, _ = self.font.size(str(self.new_level_height)[:self.caret_index])
+                pygame.draw.line(self.screen, WHITE, (dim_h_rect.x + 15 + w, dim_h_rect.y + 5), (dim_h_rect.x + 15 + w, dim_h_rect.y + 30), 2)
+
         for i, theme in enumerate(self.available_themes):
             col, row = i % 4, i // 4
-            r = pygame.Rect(panel_rect.x + 30 + col * 135, panel_rect.y + 130 + row * 40, 120, 30)
+            r = pygame.Rect(panel_rect.x + 30 + col * 135, panel_rect.y + 230 + row * 40, 120, 30)
             color = ACCENT if self.current_theme == theme else LIGHT_GRAY
             pygame.draw.rect(self.screen, color, r, border_radius=5)
             self.screen.blit(self.small_font.render(theme.upper(), True, WHITE), self.small_font.render(theme.upper(), True, WHITE).get_rect(center=r.center))
@@ -613,8 +669,8 @@ class LevelEditor:
                 self.mouse_debounce = True
 
         # Parallax Intensity
-        self.screen.blit(self.bold_font.render(f"PARALLAX INTENSITY: {self.parallax_intensity:.1f}", True, GRAY), (panel_rect.x + 30, panel_rect.y + 250))
-        slider_rect = pygame.Rect(panel_rect.x + 30, panel_rect.y + 290, 540, 10)
+        self.screen.blit(self.bold_font.render(f"PARALLAX INTENSITY: {self.parallax_intensity:.1f}", True, GRAY), (panel_rect.x + 30, panel_rect.y + 350))
+        slider_rect = pygame.Rect(panel_rect.x + 30, panel_rect.y + 390, 540, 10)
         pygame.draw.rect(self.screen, BLACK, slider_rect, border_radius=5)
         handle_x = slider_rect.x + (self.parallax_intensity / 2.0) * slider_rect.width
         handle_rect = pygame.Rect(handle_x - 10, slider_rect.y - 10, 20, 30)
@@ -624,8 +680,8 @@ class LevelEditor:
             self.parallax_intensity = max(0.0, min(2.0, (mx - slider_rect.x) / slider_rect.width * 2.0))
 
         # Vertical Offset
-        self.screen.blit(self.bold_font.render(f"VERTICAL OFFSET: {int(self.parallax_y_offset)}px", True, GRAY), (panel_rect.x + 30, panel_rect.y + 340))
-        v_slider_rect = pygame.Rect(panel_rect.x + 30, panel_rect.y + 380, 540, 10)
+        self.screen.blit(self.bold_font.render(f"VERTICAL OFFSET: {int(self.parallax_y_offset)}px", True, GRAY), (panel_rect.x + 30, panel_rect.y + 440))
+        v_slider_rect = pygame.Rect(panel_rect.x + 30, panel_rect.y + 480, 540, 10)
         pygame.draw.rect(self.screen, BLACK, v_slider_rect, border_radius=5)
         # Map -300 to 300 into the slider
         v_handle_x = v_slider_rect.x + ((self.parallax_y_offset + 300) / 600.0) * v_slider_rect.width
@@ -635,17 +691,43 @@ class LevelEditor:
         if v_slider_rect.inflate(0, 40).collidepoint(mx, my) and m_clicked:
             self.parallax_y_offset = ((mx - v_slider_rect.x) / v_slider_rect.width * 600.0) - 300
 
-        # Close Button
-        close_btn = pygame.Rect(panel_rect.centerx - 100, panel_rect.bottom - 70, 200, 45)
-        pygame.draw.rect(self.screen, (0, 150, 0), close_btn, border_radius=10)
-        self.screen.blit(self.bold_font.render("APPLY", True, WHITE), self.bold_font.render("APPLY", True, WHITE).get_rect(center=close_btn.center))
-        if close_btn.collidepoint(mx, my) and m_clicked and not self.mouse_debounce:
-            self.state = STATE_EDITING
-            self.mouse_debounce = True
+        # Buttons: APPLY and CANCEL
+        apply_btn = pygame.Rect(panel_rect.centerx - 210, panel_rect.bottom - 70, 200, 45)
+        cancel_btn = pygame.Rect(panel_rect.centerx + 10, panel_rect.bottom - 70, 200, 45)
+        
+        pygame.draw.rect(self.screen, (0, 150, 0), apply_btn, border_radius=10)
+        pygame.draw.rect(self.screen, (150, 0, 0), cancel_btn, border_radius=10)
+        
+        self.screen.blit(self.bold_font.render("APPLY", True, WHITE), self.bold_font.render("APPLY", True, WHITE).get_rect(center=apply_btn.center))
+        self.screen.blit(self.bold_font.render("CANCEL", True, WHITE), self.bold_font.render("CANCEL", True, WHITE).get_rect(center=cancel_btn.center))
+        
+        if m_clicked and not self.mouse_debounce:
+            if apply_btn.collidepoint(mx, my):
+                # Check for Resizing
+                try:
+                    nw, nh = int(self.new_level_width), int(self.new_level_height)
+                    if nw != self.cols or nh != self.rows:
+                        self.resize_level(nw, nh)
+                except: pass
+                # Save All Changes (CSV and Metadata)
+                self.save_scene(self.current_level_path)
+                self.state = STATE_EDITING
+                self.mouse_debounce = True
+            
+            if cancel_btn.collidepoint(mx, my):
+                # Reset dimension inputs to current grid size before exiting
+                self.new_level_width, self.new_level_height = str(self.cols), str(self.rows)
+                self.state = STATE_EDITING
+                self.mouse_debounce = True
 
     def run(self):
         while True:
             self.screen.fill(SKY_BLUE)
+            
+            # Global Mouse Debounce Reset
+            if not any(pygame.mouse.get_pressed()):
+                self.mouse_debounce = False
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT: pygame.quit(); sys.exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
@@ -669,8 +751,11 @@ class LevelEditor:
                     elif self.state == STATE_CREATE:
                         if event.key == pygame.K_TAB: order = ["name", "width", "height"]; self.active_input = order[(order.index(self.active_input)+1)%3]; self.caret_index = len(getattr(self, f"new_level_{self.active_input}"))
                         else: attr = f"new_level_{self.active_input}"; setattr(self, attr, self.handle_text_input(getattr(self, attr), event))
-                    elif self.state == STATE_EDITING:
+                    elif self.state == STATE_EDITING or self.state == STATE_SETTINGS:
                         if self.active_input == "speed": self.platform_speed = self.handle_text_input(self.platform_speed, event)
+                        elif self.active_input == "edit_width": self.new_level_width = self.handle_text_input(str(self.new_level_width), event)
+                        elif self.active_input == "edit_height": self.new_level_height = self.handle_text_input(str(self.new_level_height), event)
+                        
                         if mods & pygame.KMOD_CTRL:
                             if event.key == pygame.K_s: self.save_scene(self.current_level_path)
                             if event.key == pygame.K_z: self.undo()
