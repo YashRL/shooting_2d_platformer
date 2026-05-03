@@ -70,9 +70,9 @@ class ExplodingTile(Tile):
                                                    self.pos.y + self.tile_size/2 + shake_offset[1]))
             
             if elapsed >= self.timer_duration:
-                self.explode(effect_manager)
+                self.explode(effect_manager, player)
 
-    def explode(self, effect_manager):
+    def explode(self, effect_manager, player=None):
         if effect_manager:
             effect_manager.trigger_shake(300, 10)
             from engine.effects import Particle
@@ -82,6 +82,12 @@ class ExplodingTile(Tile):
                 lifetime = random.randint(400, 1200)
                 color = random.choice([(255, 0, 0), (255, 100, 0), (255, 255, 255), (200, 0, 0)])
                 effect_manager.particles.add(Particle(self.rect.centerx, self.rect.centery, color, (vel_x, vel_y), lifetime))
+        
+        # Damage logic: Check for player in radius
+        if player:
+            dist = pygame.Vector2(self.rect.center).distance_to(pygame.Vector2(player.rect.center))
+            if dist < 60: # Explosion radius
+                player.take_damage(3, self.rect) # Increased damage to 3 HP
         
         print(f"[DEBUG] Danger Tile Exploded at {self.pos}")
         self.kill()

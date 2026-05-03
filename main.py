@@ -112,7 +112,9 @@ class Game:
 
                     if info['type'] == 'static':
                         if info.get('category') == 'Danger':
-                            tile = ExplodingTile(x, y, self.resources.get_image(item_id), parallax, damage=info.get('damage', 0))
+                            # Set damage to 0 for the base tile to prevent premature contact damage
+                            # The damage will instead be dealt by the explosion radius
+                            tile = ExplodingTile(x, y, self.resources.get_image(item_id), parallax, damage=0)
                             self.platforms.add(tile)
                             self.entities.add(tile)
                         else:
@@ -165,6 +167,10 @@ class Game:
             # Player-Enemy Collisions
             enemy_hits = pygame.sprite.spritecollide(self.player, self.entities, False)
             for enemy in enemy_hits:
+                # SKIP ExplodingTile contact damage so we don't knockback before explosion
+                if isinstance(enemy, ExplodingTile):
+                    continue
+                    
                 if hasattr(enemy, 'damage'):
                     self.player.take_damage(enemy.damage, enemy.rect)
 
