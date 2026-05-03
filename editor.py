@@ -63,7 +63,7 @@ class LevelEditor:
         self.caret_index = 0
         
         # Multi-Layer Editing State
-        self.main_categories = ["Tiles", "Props", "Players", "Enemies", "Weapons", "Platforms", "Characters"]
+        self.main_categories = ["Tiles", "Props", "Players", "Enemies", "Weapons", "Platforms", "Characters", "Barrels"]
         self.tile_sub_categories = ["Concrete", "Foundation", "Green Grass", "Purple Grass", "Purple Grass v2", "Danger", "Ice", "Mud", "Pipes", "Trampoline"]
         self.selected_category = "Tiles"
         self.selected_sub_category = "Concrete"

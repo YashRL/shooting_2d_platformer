@@ -24,7 +24,7 @@ The project is divided into three main layers:
 - **`player/`**: `FoxPlayer` features variable-height jumping, 2-slot weapon inventory, and interaction logic.
 - **`enemies/`**: `BaseEnemy` framework with `Insect` (ground patrol/edge detection) and `Bee` (advanced flying AI with guard/chase logic).
 - **`weapons/`**: Modular weapon classes (`Pistol`, `SMG`) driven by registry stats.
-- **`world/`**: `Tile` and `WorldItem` classes (supports solid static tiles and non-colliding decor props).
+- **`world/`**: `Tile` and `WorldItem` classes. Includes specialized `ExplodingTile` for the "Danger" category, `ExplosiveBarrel` (bullet-triggered 3s countdown, 3 HP damage radius), and directional metadata for `Pipes`.
 
 ### 3. Editor Layer (`editor.py`)
 A professional-grade level creation tool featuring:
@@ -60,7 +60,7 @@ Levels are saved as a pair of files:
 
 ## 🛠️ Upcoming Roadmap
 - [x] **Phase 1: Hazards & Springs**: Implement jumping springs and tile-based physics for Mud (friction) and Toxic Water (DoT).
-- [x] **Phase 2: Traps & Crumbling**: Add explosive barrels with blast radius and unstable crumbling platforms (Integrated via `ExplodingTile`).
+- [x] **Phase 2: Traps & Crumbling**: Added `ExplodingTile` and `ExplosiveBarrel` (bullet-triggered) hazards.
 - [ ] **Phase 3: Moving Platforms**: Node-based pathing for elevators and mobile platforms.
 - [ ] **Phase 4: Advanced Combat & Exploration**: Weapon-wielding AI (Gunners), the **Stranger Merchant**, and functional Pipe Entrances/Traps.
 - [ ] **Sound System**: Implement `engine/sounds.py` for jump, shoot, and hurt effects.

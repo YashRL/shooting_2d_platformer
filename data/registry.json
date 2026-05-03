@@ -3,7 +3,7 @@
     "tile_size": 36,
     "gravity": 0.8
   },
-  "categories": ["Tiles", "Players", "Enemies", "Weapons", "Props", "Platforms", "Characters"],
+  "categories": ["Tiles", "Players", "Enemies", "Weapons", "Props", "Platforms", "Characters", "Barrels"],
   "items": {
     "MERCHANT": {
       "category": "Characters",
@@ -130,6 +130,14 @@
         "speed": 2.0,
         "loop": true
       }
+    },
+    "BARREL": {
+      "category": "Barrels",
+      "name": "Explosive Barrel",
+      "asset": "Assets/PNG/Tiles/Tiles/Barrel/203.png",
+      "type": "entity",
+      "module": "modules.world.barrel",
+      "class": "ExplosiveBarrel"
     },
     "TRAMPOLINE": {
       "category": "Trampoline",
