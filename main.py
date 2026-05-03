@@ -126,6 +126,9 @@ class Game:
                             elif actual_id == 'MOVING_PLATFORM':
                                 self.platforms.add(entity)
                                 # Do NOT add to entities to avoid double update (already updated in platforms.update())
+                            elif actual_id == 'TRAMPOLINE':
+                                self.platforms.add(entity)
+                                self.entities.add(entity)
                             else:
                                 self.entities.add(entity)
 
@@ -141,7 +144,7 @@ class Game:
             # Update
             self.platforms.update() # Update moving platforms first
             self.player.update(self.platforms, self.effect_manager, self.items, resources=self.resources)
-            self.entities.update(self.platforms, player_rect=self.player.rect)
+            self.entities.update(self.platforms, player=self.player)
             self.effect_manager.update()
             
             # Bullet Collisions

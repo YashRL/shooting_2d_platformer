@@ -33,7 +33,6 @@ class ResourceManager:
             'Ice_Tiles': ('Ice', 'static'),
             'Mud_Tiles': ('Mud', 'static'),
             'Pipes': ('Pipes', 'static'),
-            'Trampoline': ('Trampoline', 'static'),
             'Props': ('Props', 'decor'),
             'Clouds': ('Props', 'decor')
         }

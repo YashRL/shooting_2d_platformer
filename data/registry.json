@@ -130,6 +130,17 @@
         "speed": 2.0,
         "loop": true
       }
+    },
+    "TRAMPOLINE": {
+      "category": "Trampoline",
+      "name": "Trampoline",
+      "asset": "Assets/PNG/Tiles/Tiles/Trampoline/up.png",
+      "type": "entity",
+      "module": "modules.world.trampoline",
+      "class": "Trampoline",
+      "properties": {
+        "jump_power": 18
+      }
     }
   }
 }
