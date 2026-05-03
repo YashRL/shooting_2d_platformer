@@ -48,6 +48,11 @@ class ResourceManager:
                         # NOTE: If numbers overlap between folders, we should use 'Folder_ID'
                         full_id = f"{folder}_{item_id}" 
                         
+                        # Special directional handling for Pipes
+                        direction = None
+                        if folder == 'Pipes' and item_id in ['up', 'down', 'left', 'right']:
+                            direction = item_id
+
                         damage_val = 1 if cat in ['Purple Grass', 'Purple Grass v2'] else 0
                         if damage_val > 0:
                             print(f"[DEBUG] Tile {full_id} assigned damage: {damage_val}")
@@ -60,6 +65,8 @@ class ResourceManager:
                             'parallax_factor': 1.0,
                             'damage': damage_val
                         }
+                        if direction:
+                            self.registry[full_id]['direction'] = direction
 
         # 3. Pre-load images
         for item_id, info in self.registry.items():

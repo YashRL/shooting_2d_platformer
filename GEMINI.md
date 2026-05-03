@@ -59,9 +59,10 @@ Levels are saved as a pair of files:
 2. **`.json`**: Metadata including `theme`, `parallax_intensity`, `parallax_y_offset`, and map dimensions.
 
 ## 🛠️ Upcoming Roadmap
-- [ ] **Phase 1: Hazards & Springs**: Implement jumping springs and tile-based physics for Mud (friction) and Toxic Water (DoT).
-- [ ] **Phase 2: Traps & Crumbling**: Add explosive barrels with blast radius and unstable crumbling platforms.
+- [x] **Phase 1: Hazards & Springs**: Implement jumping springs and tile-based physics for Mud (friction) and Toxic Water (DoT).
+- [x] **Phase 2: Traps & Crumbling**: Add explosive barrels with blast radius and unstable crumbling platforms (Integrated via `ExplodingTile`).
 - [ ] **Phase 3: Moving Platforms**: Node-based pathing for elevators and mobile platforms.
-- [ ] **Phase 4: Advanced Combat**: Weapon-wielding AI (Gunners) and the **Stranger Merchant** (In-world shop system).
+- [ ] **Phase 4: Advanced Combat & Exploration**: Weapon-wielding AI (Gunners), the **Stranger Merchant**, and functional Pipe Entrances/Traps.
 - [ ] **Sound System**: Implement `engine/sounds.py` for jump, shoot, and hurt effects.
 - [ ] **Animation Expansion**: Add hurt, death, and reload states to all entities.
+n**: Add hurt, death, and reload states to all entities.
