@@ -3,7 +3,7 @@
     "tile_size": 36,
     "gravity": 0.8
   },
-  "categories": ["Tiles", "Players", "Enemies", "Weapons", "Props", "Platforms", "Characters", "Barrels"],
+  "categories": ["Tiles", "Players", "Enemies", "Weapons", "Props", "Platforms", "Characters", "Barrels", "Traps"],
   "items": {
     "MERCHANT": {
       "category": "Characters",
@@ -148,6 +148,18 @@
       "class": "Trampoline",
       "properties": {
         "jump_power": 18
+      }
+    },
+    "KNIFE": {
+      "category": "Traps",
+      "name": "Throwing Knife",
+      "asset": "Assets/PNG/Throw/Knife.png",
+      "type": "entity",
+      "module": "modules.world.trap",
+      "class": "ThrowingKnife",
+      "properties": {
+        "damage": 1,
+        "speed": 10
       }
     }
   }

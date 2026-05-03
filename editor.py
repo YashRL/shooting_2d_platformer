@@ -63,11 +63,14 @@ class LevelEditor:
         self.caret_index = 0
         
         # Multi-Layer Editing State
-        self.main_categories = ["Tiles", "Props", "Players", "Enemies", "Weapons", "Platforms", "Characters", "Barrels"]
+        self.main_categories = ["Tiles", "Props", "Players", "Enemies", "Weapons", "Platforms", "Characters", "Barrels", "Traps"]
         self.tile_sub_categories = ["Concrete", "Foundation", "Green Grass", "Purple Grass", "Purple Grass v2", "Danger", "Ice", "Mud", "Pipes", "Trampoline"]
         self.selected_category = "Tiles"
         self.selected_sub_category = "Concrete"
         self.selected_item = None
+        
+        # Trap State
+        self.selected_direction = "UP"
         
         # Level Settings
         self.available_themes = [d for d in os.listdir("Assets/PNG/Backgrounds") if os.path.isdir(os.path.join("Assets/PNG/Backgrounds", d))]
@@ -514,6 +517,21 @@ class LevelEditor:
                 self.platform_loop = not self.platform_loop
                 self.mouse_debounce = True
 
+        # Trap Direction Selection
+        if self.selected_category == "Traps":
+            dir_y = item_start_y + ((len(items) + cols - 1) // cols) * (box_size + padding) + 10
+            self.screen.blit(self.small_font.render("TRAP DIRECTION:", True, GRAY), (20, dir_y))
+            dirs = ["UP", "DOWN", "LEFT", "RIGHT"]
+            for i, d in enumerate(dirs):
+                col, row = i % 2, i // 2
+                r = pygame.Rect(10 + col * (btn_w + 10), dir_y + 20 + row * 30, btn_w, 25)
+                color = ACCENT if self.selected_direction == d else BLACK
+                pygame.draw.rect(self.screen, color, r, border_radius=5)
+                self.screen.blit(self.small_font.render(d, True, WHITE), self.small_font.render(d, True, WHITE).get_rect(center=r.center))
+                if r.collidepoint(mx, my) and m_clicked and not self.mouse_debounce:
+                    self.selected_direction = d
+                    self.mouse_debounce = True
+
         play_rect = pygame.Rect(20, SCREEN_HEIGHT - 50, UI_WIDTH - 40, 35)
         pygame.draw.rect(self.screen, (0, 150, 0), play_rect, border_radius=8)
         self.screen.blit(self.font.render("PLAY SCENE", True, WHITE), self.font.render("PLAY SCENE", True, WHITE).get_rect(center=play_rect.center))
@@ -579,8 +597,12 @@ class LevelEditor:
                                 if self.grid_world[gy][gx] != self.selected_item:
                                     self.save_state_for_undo(); self.grid_world[gy][gx] = self.selected_item
                             else:
-                                if self.grid_entities[gy][gx] != self.selected_item:
-                                    self.save_state_for_undo(); self.grid_entities[gy][gx] = self.selected_item
+                                item_to_place = self.selected_item
+                                if info['category'] == "Traps":
+                                    item_to_place = f"{self.selected_item}[direction:{self.selected_direction}]"
+                                
+                                if self.grid_entities[gy][gx] != item_to_place:
+                                    self.save_state_for_undo(); self.grid_entities[gy][gx] = item_to_place
                                     self.mouse_debounce = True # Prevent entity spam
                     elif self.current_tool == "erase":
                         # FIX: Eraser now clears both layers regardless of selected category.

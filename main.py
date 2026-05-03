@@ -188,7 +188,10 @@ class Game:
             for item in self.items: self.screen.blit(item.image, self.camera.apply(item))
             for entity in self.entities: 
                 if entity not in self.platforms:
-                    self.screen.blit(entity.image, self.camera.apply(entity))
+                    if hasattr(entity, 'draw'):
+                        entity.draw(self.screen, self.camera)
+                    else:
+                        self.screen.blit(entity.image, self.camera.apply(entity))
             
             self.effect_manager.draw(self.screen, self.camera)
             self.player.draw(self.screen, self.camera)
