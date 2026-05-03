@@ -71,6 +71,7 @@ class PhysicsEntity(pygame.sprite.Sprite):
                     if self.vel.y > 0:
                         self.rect.bottom = sprite.rect.top
                         self.on_ground = True
+                        self.current_ground = sprite # SET THIS HERE TOO
                         self.vel.y = 0
                     elif self.vel.y < 0:
                         self.rect.top = sprite.rect.bottom

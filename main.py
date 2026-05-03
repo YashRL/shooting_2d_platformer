@@ -3,7 +3,7 @@ import sys
 import csv
 import os
 from engine.loader import ResourceManager
-from modules.world.tile import Tile
+from modules.world.tile import Tile, ExplodingTile
 from engine.effects import EffectManager
 from engine.ui import UIManager
 from engine.parallax import ParallaxManager
@@ -111,7 +111,12 @@ class Game:
                     parallax = info.get('parallax_factor', 1.0)
 
                     if info['type'] == 'static':
-                        self.platforms.add(Tile(x, y, self.resources.get_image(item_id), parallax, damage=info.get('damage', 0)))
+                        if info.get('category') == 'Danger':
+                            tile = ExplodingTile(x, y, self.resources.get_image(item_id), parallax, damage=info.get('damage', 0))
+                            self.platforms.add(tile)
+                            self.entities.add(tile)
+                        else:
+                            self.platforms.add(Tile(x, y, self.resources.get_image(item_id), parallax, damage=info.get('damage', 0)))
                     elif info['type'] == 'decor':
                         self.decors.add(Tile(x, y, self.resources.get_image(item_id), parallax))
                     elif info['category'] == 'Weapons':
@@ -144,7 +149,7 @@ class Game:
             # Update
             self.platforms.update() # Update moving platforms first
             self.player.update(self.platforms, self.effect_manager, self.items, resources=self.resources)
-            self.entities.update(self.platforms, player=self.player)
+            self.entities.update(self.platforms, player=self.player, effect_manager=self.effect_manager)
             self.effect_manager.update()
             
             # Bullet Collisions
