@@ -153,8 +153,8 @@ class FoxPlayer(PhysicsEntity):
         
         # Hazard Damage Logic (Poison)
         current_time = pygame.time.get_ticks()
-        # Inflate rect slightly to detect tiles we are standing on or walking against
-        detect_rect = self.rect.inflate(4, 4)
+        # FIX: Inflate rect significantly (8px) to detect tiles even when snapped/grounded
+        detect_rect = self.rect.inflate(8, 8)
         hits = [p for p in platforms if p.rect.colliderect(detect_rect)]
         
         for tile in hits:

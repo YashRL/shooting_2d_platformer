@@ -26,6 +26,14 @@ class ResourceManager:
             'Foundation_tiles': ('Foundation', 'static'),
             'Green_Grass': ('Green Grass', 'static'),
             'Purple_Grass': ('Purple Grass', 'static'),
+            'Purple_grass_v2': ('Purple Grass v2', 'static'),
+            'Green_Grass_v2': ('Green Grass', 'static'),
+            'Foundations_v2': ('Foundation', 'static'),
+            'Danger_Tiles': ('Danger', 'static'),
+            'Ice_Tiles': ('Ice', 'static'),
+            'Mud_Tiles': ('Mud', 'static'),
+            'Pipes': ('Pipes', 'static'),
+            'Trampoline': ('Trampoline', 'static'),
             'Props': ('Props', 'decor'),
             'Clouds': ('Props', 'decor')
         }
@@ -41,7 +49,7 @@ class ResourceManager:
                         # NOTE: If numbers overlap between folders, we should use 'Folder_ID'
                         full_id = f"{folder}_{item_id}" 
                         
-                        damage_val = 1 if cat == 'Purple Grass' else 0
+                        damage_val = 1 if cat in ['Purple Grass', 'Purple Grass v2'] else 0
                         if damage_val > 0:
                             print(f"[DEBUG] Tile {full_id} assigned damage: {damage_val}")
                         
