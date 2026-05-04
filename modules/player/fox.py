@@ -125,9 +125,28 @@ class FoxPlayer(PhysicsEntity):
             offset_x = -20 if self.animations.flip else 20
             muzzle_x = self.rect.centerx + offset_x
             muzzle_y = self.rect.centery + 5
+            
+            # Determine shoot behavior
+            if weapon.shoot_type == 'rocket':
+                # Pass entities and self for explosion area-of-effect logic
+                # We need access to the entities group. Since it's passed to update, 
+                # we should probably store a reference or pass it through.
+                # In main.py, entities is passed as 'items_group'? No, that's weapons.
+                # Actually, handle_input receives items_group.
+                # Let's check how main.py calls player.update
+                pass 
+            
             effect_manager.trigger_shake(100, 4)
             effect_manager.create_muzzle_flash(muzzle_x, muzzle_y, direction)
-            effect_manager.spawn_bullet(muzzle_x, muzzle_y, direction, weapon.bullet_speed, weapon.damage)
+            
+            # Use getattr to check for groups if we decide to pass them in
+            entities = getattr(self, '_last_entities', pygame.sprite.Group())
+            
+            if weapon.shoot_type == 'rocket':
+                effect_manager.spawn_rocket(muzzle_x, muzzle_y, direction, weapon.bullet_speed, weapon.damage, entities, self)
+            else:
+                effect_manager.spawn_bullet(muzzle_x, muzzle_y, direction, weapon.bullet_speed, weapon.damage)
+                
             weapon.current_ammo -= 1
             weapon.last_fire_time = pygame.time.get_ticks()
 
@@ -148,6 +167,10 @@ class FoxPlayer(PhysicsEntity):
                 self.is_hit = False
                 
         resources = kwargs.get('resources')
+        entities = kwargs.get('entities')
+        if entities:
+            self._last_entities = entities
+            
         self.handle_input(effect_manager, items_group, resources)
         self.apply_physics(platforms)
         

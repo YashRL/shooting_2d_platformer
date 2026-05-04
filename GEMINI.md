@@ -16,14 +16,14 @@ The project is divided into three main layers:
 - **`loader.py`**: The `ResourceManager` handles `registry.json`, pre-loads assets, dynamically spawns entity classes via `importlib`, and features auto-discovery for nested asset folders.
 - **`physics.py`**: `PhysicsEntity` provides centralized gravity, collision, and terminal velocity logic. Includes consistent `current_ground` detection for standing/carrying logic.
 - **`animation.py`**: `AnimationManager` handles state-based frame cycling, flipping, and red-tinted damage flashes.
-- **`effects.py`**: `EffectManager` manages particles (muzzle flashes), screen shake, and projectile life-cycles.
+- **`effects.py`**: `EffectManager` manages particles (muzzle flashes), screen shake, and projectile life-cycles. Includes dedicated `Rocket` logic with AOE explosions and smoke trails.
 - **`parallax.py`**: `ParallaxManager` handles infinite looping background layers with dynamic scaling, intensity, and vertical offsets.
 - **`ui.py`**: `UIManager` handles professional HUD elements, including segmented dynamic health bars and icon-based counters.
 
 ### 2. Module Layer (`/modules`)
 - **`player/`**: `FoxPlayer` features variable-height jumping, 2-slot weapon inventory, and interaction logic.
 - **`enemies/`**: `BaseEnemy` framework with `Insect` (ground patrol/edge detection) and `Bee` (advanced flying AI with guard/chase logic).
-- **`weapons/`**: Modular weapon classes (`Pistol`, `SMG`) driven by registry stats.
+- **`weapons/`**: Modular weapon classes (`Pistol`, `SMG`, `RocketLauncher`) driven by registry stats. The **Rocket Launcher** features AOE damage and high-impact screenshake.
 - **`world/`**: `Tile` and `WorldItem` classes. Includes specialized `ExplodingTile` for the "Danger" category, `ExplosiveBarrel` (bullet-triggered hazard), `ThrowingKnife` (Invisible 5-tile raycast trap, directional), and directional metadata for `Pipes`.
 
 ### 3. Editor Layer (`editor.py`)
@@ -49,6 +49,7 @@ A professional-grade level creation tool featuring:
 | **Props** | `decor` | Non-colliding background/foreground decorations. |
 | **Players** | `entity` | Spawns dynamic modules (e.g., `FoxPlayer`). |
 | **Enemies** | `entity` | Spawns AI modules (e.g., `Insect`, `Bee`). |
+| **Weapons** | `entity` | Pickable items (`P`, `CT`, `RL`). |
 
 ## 📁 Level Format (Composite CSV + JSON)
 Levels are saved as a pair of files:
@@ -58,8 +59,9 @@ Levels are saved as a pair of files:
 ## 🛠️ Upcoming Roadmap
 - [x] **Phase 1: Hazards & Springs**: Implement jumping springs and tile-based physics for Mud and Toxic Water.
 - [x] **Phase 2: Traps & Crumbling**: Added `ExplodingTile`, `ExplosiveBarrel`, and `ThrowingKnife` hazards.
-- [ ] **Phase 3: Moving Platforms**: Node-based pathing for elevators and mobile platforms.
-- [ ] **Phase 4: Advanced Combat & Exploration**: Weapon-wielding AI (Gunners), the **Stranger Merchant**, and functional Pipe Entrances.
+- [x] **Phase 3: Moving Platforms**: Node-based pathing for elevators and mobile platforms.
+- [x] **Phase 4: Advanced Combat**: Implemented **Rocket Launcher (RPG)** with AOE and smoke trails.
+- [ ] **Phase 5: Exploration & NPCs**: Weapon-wielding AI (Gunners), the **Stranger Merchant**, and functional Pipe Entrances.
 - [ ] **Sound System**: Implement `engine/sounds.py` for jump, shoot, and hurt effects.
 - [ ] **Animation Expansion**: Add hurt, death, and reload states to all entities.
 

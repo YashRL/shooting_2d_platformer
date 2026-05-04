@@ -150,7 +150,7 @@ class Game:
 
             # Update
             self.platforms.update() # Update moving platforms first
-            self.player.update(self.platforms, self.effect_manager, self.items, resources=self.resources)
+            self.player.update(self.platforms, self.effect_manager, self.items, entities=self.entities, resources=self.resources)
             self.entities.update(self.platforms, player=self.player, effect_manager=self.effect_manager)
             self.effect_manager.update()
             
