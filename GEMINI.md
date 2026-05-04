@@ -62,3 +62,11 @@ Levels are saved as a pair of files:
 - [ ] **Phase 4: Advanced Combat & Exploration**: Weapon-wielding AI (Gunners), the **Stranger Merchant**, and functional Pipe Entrances.
 - [ ] **Sound System**: Implement `engine/sounds.py` for jump, shoot, and hurt effects.
 - [ ] **Animation Expansion**: Add hurt, death, and reload states to all entities.
+
+## 🐛 Known Bugs
+- **Platform Selection Dependency**: In the Level Editor (`editor.py`), new platforms (e.g., `MOVING_PLATFORM_2`) reportedly cannot be used independently. Users must select the original `MOVING_PLATFORM` first before the new one functions correctly.
+    - **Findings so far**: 
+        - Hardcoded checks for `MOVING_PLATFORM` have been replaced with generic `category == "Platforms"` logic.
+        - Node placement state is reset on item selection.
+        - Registry includes `width_tiles` for correct multi-tile scaling.
+        - The bug persists despite no obvious hardcoded links, suggesting a subtle state initialization issue in the editor's selection or UI update loop.

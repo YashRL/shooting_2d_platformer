@@ -283,13 +283,16 @@ class LevelEditor:
                     info = self.resources.registry.get(actual_id)
                     img = self.resources.get_image(val_e)
                     if img:
-                        # Draw based on actual image aspect ratio (e.g. 2-tile wide vs 3-tile wide)
-                        w_scale = (img.get_width() / self.base_tile_size) * self.current_tile_size
+                        # Use width_tiles from properties if available, default to aspect ratio
+                        w_tiles = 1
+                        if info:
+                            w_tiles = info.get('properties', {}).get('width_tiles', 1)
                         
+                        w_scale = w_tiles * self.current_tile_size
                         self.screen.blit(pygame.transform.scale(img, (int(w_scale), self.current_tile_size)), (x, y))
                         
                         # Extra visual for Moving Platform nodes
-                        if info.get('category') == "Platforms" and '[' in val_e:
+                        if info and info.get('category') == "Platforms" and '[' in val_e:
                             props_str = val_e.split('[')[1][:-1]
                             # Robust split: handles legacy ';' and new '&'
                             pairs = props_str.replace(';', '&').split('&')
@@ -483,14 +486,25 @@ class LevelEditor:
             if img:
                 actual_id = item_id.split('[')[0] if '[' in item_id else item_id
                 info = self.resources.registry.get(actual_id)
+                
+                w_tiles = 1
+                if info:
+                    w_tiles = info.get('properties', {}).get('width_tiles', 1)
+                
+                # Show it wider if it's a multi-tile platform
                 w_disp = box_size
-                if info and info.get('category') == "Platforms":
-                    w_disp = box_size * 1.8 # Show it wider but slightly smaller than 2x to fit nicely
+                if w_tiles > 1:
+                    w_disp = box_size * (w_tiles * 0.8) # Proportional width
                 
                 self.screen.blit(pygame.transform.scale(img, (int(w_disp), box_size)), (x, y))
 
             if self.selected_item == item_id: pygame.draw.rect(self.screen, HIGHLIGHT, r.inflate(6, 6), 2, border_radius=5)
-            if r.collidepoint(mx, my) and m_clicked and not self.mouse_debounce: self.selected_item = item_id
+            if r.collidepoint(mx, my) and m_clicked and not self.mouse_debounce: 
+                self.selected_item = item_id
+                # Reset node placement for new selection
+                self.placing_nodes_for = None
+                self.node_buffer = []
+                self.mouse_debounce = True
 
         # Moving Platform Speed Input
         if self.selected_item and self.resources.registry.get(self.selected_item, {}).get('category') == "Platforms":

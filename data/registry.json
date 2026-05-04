@@ -128,7 +128,8 @@
       "class": "MovingPlatform",
       "properties": {
         "speed": 2.0,
-        "loop": true
+        "loop": true,
+        "width_tiles": 2
       }
     },
     "MOVING_PLATFORM_2": {
@@ -140,7 +141,8 @@
       "class": "MetalMovingPlatform",
       "properties": {
         "speed": 2.0,
-        "loop": true
+        "loop": true,
+        "width_tiles": 3
       }
     },
     "BARREL": {
