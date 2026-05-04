@@ -131,6 +131,18 @@
         "loop": true
       }
     },
+    "MOVING_PLATFORM_2": {
+      "category": "Platforms",
+      "name": "Metal Moving Platform",
+      "asset": "Assets/PNG/Tiles/Tiles/Moving_Platform/middle.png",
+      "type": "entity",
+      "module": "modules.world.moving_platform",
+      "class": "MetalMovingPlatform",
+      "properties": {
+        "speed": 2.0,
+        "loop": true
+      }
+    },
     "BARREL": {
       "category": "Barrels",
       "name": "Explosive Barrel",

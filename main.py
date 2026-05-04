@@ -130,7 +130,7 @@ class Game:
                             if actual_id == 'START': 
                                 self.player = entity
                                 # Do NOT add player to self.entities to avoid double update
-                            elif actual_id == 'MOVING_PLATFORM':
+                            elif info['category'] == 'Platforms':
                                 self.platforms.add(entity)
                                 # Do NOT add to entities to avoid double update (already updated in platforms.update())
                             elif actual_id == 'TRAMPOLINE':

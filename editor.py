@@ -283,17 +283,13 @@ class LevelEditor:
                     info = self.resources.registry.get(actual_id)
                     img = self.resources.get_image(val_e)
                     if img:
-                        w_scale = self.current_tile_size
-                        if actual_id == "MOVING_PLATFORM":
-                            # Draw 2 tiles wide
-                            w_scale = self.current_tile_size * 2
-                            # Also optionally draw nodes if it's the selected item or always?
-                            # For "careful" implementation, let's always show a hint of path if selected.
+                        # Draw based on actual image aspect ratio (e.g. 2-tile wide vs 3-tile wide)
+                        w_scale = (img.get_width() / self.base_tile_size) * self.current_tile_size
                         
-                        self.screen.blit(pygame.transform.scale(img, (w_scale, self.current_tile_size)), (x, y))
+                        self.screen.blit(pygame.transform.scale(img, (int(w_scale), self.current_tile_size)), (x, y))
                         
                         # Extra visual for Moving Platform nodes
-                        if actual_id == "MOVING_PLATFORM" and '[' in val_e:
+                        if info.get('category') == "Platforms" and '[' in val_e:
                             props_str = val_e.split('[')[1][:-1]
                             # Robust split: handles legacy ';' and new '&'
                             pairs = props_str.replace(';', '&').split('&')
@@ -486,8 +482,9 @@ class LevelEditor:
             img = self.resources.get_image(item_id)
             if img:
                 actual_id = item_id.split('[')[0] if '[' in item_id else item_id
+                info = self.resources.registry.get(actual_id)
                 w_disp = box_size
-                if actual_id == "MOVING_PLATFORM":
+                if info and info.get('category') == "Platforms":
                     w_disp = box_size * 1.8 # Show it wider but slightly smaller than 2x to fit nicely
                 
                 self.screen.blit(pygame.transform.scale(img, (int(w_disp), box_size)), (x, y))
@@ -496,7 +493,7 @@ class LevelEditor:
             if r.collidepoint(mx, my) and m_clicked and not self.mouse_debounce: self.selected_item = item_id
 
         # Moving Platform Speed Input
-        if self.selected_item == "MOVING_PLATFORM":
+        if self.selected_item and self.resources.registry.get(self.selected_item, {}).get('category') == "Platforms":
             speed_y = item_start_y + ((len(items) + cols - 1) // cols) * (box_size + padding) + 10
             self.screen.blit(self.small_font.render("PLATFORM SPEED:", True, GRAY), (20, speed_y))
             r = pygame.Rect(20, speed_y + 20, UI_WIDTH - 40, 25)
@@ -572,7 +569,8 @@ class LevelEditor:
                 if m_keys[0]: # Left Click
                     if self.current_tool == "stamp":
                         if self.selected_item:
-                            if self.selected_item == "MOVING_PLATFORM":
+                            info = self.resources.registry[self.selected_item]
+                            if info.get('category') == "Platforms":
                                 if self.placing_nodes_for is None:
                                     self.placing_nodes_for = (gx, gy)
                                     self.node_buffer = [(gx * TILE_SIZE, gy * TILE_SIZE)]
@@ -585,14 +583,13 @@ class LevelEditor:
                                         px, py = self.placing_nodes_for
                                         nodes_str = "|".join([f"{nx},{ny}" for nx, ny in self.node_buffer])
                                         loop_str = "true" if self.platform_loop else "false"
-                                        entity_data = f"MOVING_PLATFORM[nodes:{nodes_str}&speed:{self.platform_speed}&loop:{loop_str}]"
+                                        entity_data = f"{self.selected_item}[nodes:{nodes_str}&speed:{self.platform_speed}&loop:{loop_str}]"
                                         self.save_state_for_undo()
                                         self.grid_entities[py][px] = entity_data
                                         self.placing_nodes_for = None
                                         self.node_buffer = []
                                 return
 
-                            info = self.resources.registry[self.selected_item]
                             if info['type'] == 'static':
                                 if self.grid_world[gy][gx] != self.selected_item:
                                     self.save_state_for_undo(); self.grid_world[gy][gx] = self.selected_item
