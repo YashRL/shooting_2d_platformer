@@ -107,7 +107,14 @@ class ResourceManager:
                     elif k == 'speed':
                         instance_props[k] = float(v)
                     else:
-                        instance_props[k] = v
+                        # Auto-detect numeric types for generic properties like hp, damage, etc.
+                        try:
+                            if '.' in v:
+                                instance_props[k] = float(v)
+                            else:
+                                instance_props[k] = int(v)
+                        except ValueError:
+                            instance_props[k] = v
 
         if actual_id not in self.registry: return None
         info = self.registry[actual_id]
@@ -123,6 +130,9 @@ class ResourceManager:
             properties = info.get('properties', {}).copy()
             properties.update(instance_props)
             properties.update(kwargs)
+            # Pass resources to the entity if it needs to spawn weapons/etc
+            if 'resources' not in properties:
+                properties['resources'] = self
             return cls(x, y, properties)
         except Exception as e:
             print(f"Failed to spawn {actual_id}: {e}")

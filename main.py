@@ -153,11 +153,23 @@ class Game:
             
             # Bullet Collisions
             for bullet in self.effect_manager.bullets:
+                # 1. Collision with World Entities (Enemies/Bosses)
                 hits = pygame.sprite.spritecollide(bullet, self.entities, False)
                 for enemy in hits:
-                    if hasattr(enemy, 'take_damage'):
+                    if enemy != bullet.owner and hasattr(enemy, 'take_damage'):
                         enemy.take_damage(bullet.damage, bullet.direction)
+                        bullet.kill()
+                        break
+                
+                if not bullet.alive(): continue
+
+                # 2. Collision with Player
+                if bullet.owner != self.player and bullet.rect.colliderect(self.player.rect):
+                    self.player.take_damage(bullet.damage, bullet.rect)
                     bullet.kill()
+                    continue
+
+                # 3. Collision with Platforms
                 if pygame.sprite.spritecollideany(bullet, self.platforms):
                     bullet.kill()
 

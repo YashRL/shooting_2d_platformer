@@ -3,8 +3,24 @@
     "tile_size": 36,
     "gravity": 0.8
   },
-  "categories": ["Tiles", "Players", "Enemies", "Weapons", "Props", "Platforms", "Characters", "Barrels", "Traps"],
+  "categories": ["Tiles", "Players", "Enemies", "Weapons", "Props", "Platforms", "Characters", "Barrels", "Traps", "BOSS"],
   "items": {
+    "BOSS_R": {
+      "category": "BOSS",
+      "name": "Boss Rabbit",
+      "asset": "Assets/PNG/Enemies/Tiles/big_rabit/walk_1.png",
+      "type": "entity",
+      "module": "modules.enemies.boss_rabbit",
+      "class": "BossRabbit",
+      "properties": { 
+        "hp": 250, 
+        "speed": 2.2, 
+        "damage": 5, 
+        "weapon": "CT",
+        "shoot_range": 450,
+        "jump_power": -14
+      }
+    },
     "MERCHANT": {
       "category": "Characters",
       "name": "Merchant",

@@ -3,13 +3,14 @@ import random
 import math
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, x, y, direction, speed, damage, image):
+    def __init__(self, x, y, direction, speed, damage, image, owner=None):
         super().__init__()
         self.image = image
         self.rect = self.image.get_rect(center=(x, y))
         self.direction = direction
         self.speed = speed
         self.damage = damage
+        self.owner = owner
 
     def update(self):
         self.rect.x += self.direction * self.speed
@@ -17,8 +18,8 @@ class Bullet(pygame.sprite.Sprite):
             self.kill()
 
 class Rocket(Bullet):
-    def __init__(self, x, y, direction, speed, damage, image, effect_manager, entities, player):
-        super().__init__(x, y, direction, speed, damage, image)
+    def __init__(self, x, y, direction, speed, damage, image, effect_manager, entities, player, owner=None):
+        super().__init__(x, y, direction, speed, damage, image, owner)
         self.effect_manager = effect_manager
         self.entities = entities
         self.player = player
@@ -125,13 +126,13 @@ class EffectManager:
             color = random.choice([(255, 220, 0), (255, 255, 255), (255, 150, 0)])
             self.particles.add(Particle(x, y, color, (vel_x, vel_y), lifetime))
 
-    def spawn_bullet(self, x, y, direction, speed, damage):
-        bullet = Bullet(x, y, direction, speed, damage, self.bullet_img)
+    def spawn_bullet(self, x, y, direction, speed, damage, owner=None):
+        bullet = Bullet(x, y, direction, speed, damage, self.bullet_img, owner)
         self.bullets.add(bullet)
         return bullet
 
-    def spawn_rocket(self, x, y, direction, speed, damage, entities, player):
-        rocket = Rocket(x, y, direction, speed, damage, self.rocket_img, self, entities, player)
+    def spawn_rocket(self, x, y, direction, speed, damage, entities, player, owner=None):
+        rocket = Rocket(x, y, direction, speed, damage, self.rocket_img, self, entities, player, owner)
         self.bullets.add(rocket)
         return rocket
 

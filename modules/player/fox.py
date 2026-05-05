@@ -143,9 +143,9 @@ class FoxPlayer(PhysicsEntity):
             entities = getattr(self, '_last_entities', pygame.sprite.Group())
             
             if weapon.shoot_type == 'rocket':
-                effect_manager.spawn_rocket(muzzle_x, muzzle_y, direction, weapon.bullet_speed, weapon.damage, entities, self)
+                effect_manager.spawn_rocket(muzzle_x, muzzle_y, direction, weapon.bullet_speed, weapon.damage, entities, self, owner=self)
             else:
-                effect_manager.spawn_bullet(muzzle_x, muzzle_y, direction, weapon.bullet_speed, weapon.damage)
+                effect_manager.spawn_bullet(muzzle_x, muzzle_y, direction, weapon.bullet_speed, weapon.damage, owner=self)
                 
             weapon.current_ammo -= 1
             weapon.last_fire_time = pygame.time.get_ticks()

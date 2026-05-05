@@ -63,7 +63,7 @@ class LevelEditor:
         self.caret_index = 0
         
         # Multi-Layer Editing State
-        self.main_categories = ["Tiles", "Props", "Players", "Enemies", "Weapons", "Platforms", "Characters", "Barrels", "Traps"]
+        self.main_categories = ["Tiles", "Props", "Players", "Enemies", "Weapons", "Platforms", "Characters", "Barrels", "Traps", "BOSS"]
         self.tile_sub_categories = ["Concrete", "Foundation", "Green Grass", "Purple Grass", "Purple Grass v2", "Danger", "Ice", "Mud", "Pipes", "Trampoline"]
         self.selected_category = "Tiles"
         self.selected_sub_category = "Concrete"
@@ -71,6 +71,11 @@ class LevelEditor:
         
         # Trap State
         self.selected_direction = "UP"
+        
+        # Boss State
+        self.boss_hp = "250"
+        self.boss_speed = "2.2"
+        self.boss_weapon = "CT"
         
         # Level Settings
         self.available_themes = [d for d in os.listdir("Assets/PNG/Backgrounds") if os.path.isdir(os.path.join("Assets/PNG/Backgrounds", d))]
@@ -543,6 +548,30 @@ class LevelEditor:
                     self.selected_direction = d
                     self.mouse_debounce = True
 
+        # Boss Property Editing
+        if self.selected_category == "BOSS":
+            boss_y = item_start_y + ((len(items) + cols - 1) // cols) * (box_size + padding) + 10
+            self.screen.blit(self.small_font.render("BOSS HP:", True, GRAY), (20, boss_y))
+            hp_r = pygame.Rect(20, boss_y + 20, UI_WIDTH - 40, 25)
+            pygame.draw.rect(self.screen, INPUT_BG, hp_r, border_radius=5)
+            pygame.draw.rect(self.screen, ACCENT if self.active_input == "boss_hp" else LIGHT_GRAY, hp_r, 1, border_radius=5)
+            self.screen.blit(self.small_font.render(self.boss_hp, True, WHITE), (hp_r.x + 10, hp_r.y + 5))
+            if hp_r.collidepoint(mx, my) and m_clicked: self.active_input, self.caret_index = "boss_hp", len(self.boss_hp)
+
+            self.screen.blit(self.small_font.render("BOSS SPEED:", True, GRAY), (20, boss_y + 55))
+            spd_r = pygame.Rect(20, boss_y + 75, UI_WIDTH - 40, 25)
+            pygame.draw.rect(self.screen, INPUT_BG, spd_r, border_radius=5)
+            pygame.draw.rect(self.screen, ACCENT if self.active_input == "boss_speed" else LIGHT_GRAY, spd_r, 1, border_radius=5)
+            self.screen.blit(self.small_font.render(self.boss_speed, True, WHITE), (spd_r.x + 10, spd_r.y + 5))
+            if spd_r.collidepoint(mx, my) and m_clicked: self.active_input, self.caret_index = "boss_speed", len(self.boss_speed)
+
+            self.screen.blit(self.small_font.render("WEAPON ID (P, CT, RL):", True, GRAY), (20, boss_y + 110))
+            wpn_r = pygame.Rect(20, boss_y + 130, UI_WIDTH - 40, 25)
+            pygame.draw.rect(self.screen, INPUT_BG, wpn_r, border_radius=5)
+            pygame.draw.rect(self.screen, ACCENT if self.active_input == "boss_weapon" else LIGHT_GRAY, wpn_r, 1, border_radius=5)
+            self.screen.blit(self.small_font.render(self.boss_weapon, True, WHITE), (wpn_r.x + 10, wpn_r.y + 5))
+            if wpn_r.collidepoint(mx, my) and m_clicked: self.active_input, self.caret_index = "boss_weapon", len(self.boss_weapon)
+
         play_rect = pygame.Rect(20, SCREEN_HEIGHT - 50, UI_WIDTH - 40, 35)
         pygame.draw.rect(self.screen, (0, 150, 0), play_rect, border_radius=8)
         self.screen.blit(self.font.render("PLAY SCENE", True, WHITE), self.font.render("PLAY SCENE", True, WHITE).get_rect(center=play_rect.center))
@@ -611,6 +640,8 @@ class LevelEditor:
                                 item_to_place = self.selected_item
                                 if info['category'] == "Traps":
                                     item_to_place = f"{self.selected_item}[direction:{self.selected_direction}]"
+                                elif info['category'] == "BOSS":
+                                    item_to_place = f"{self.selected_item}[hp:{self.boss_hp}&speed:{self.boss_speed}&weapon:{self.boss_weapon}]"
                                 
                                 if self.grid_entities[gy][gx] != item_to_place:
                                     self.save_state_for_undo(); self.grid_entities[gy][gx] = item_to_place
@@ -788,6 +819,9 @@ class LevelEditor:
                         if self.active_input == "speed": self.platform_speed = self.handle_text_input(self.platform_speed, event)
                         elif self.active_input == "edit_width": self.new_level_width = self.handle_text_input(str(self.new_level_width), event)
                         elif self.active_input == "edit_height": self.new_level_height = self.handle_text_input(str(self.new_level_height), event)
+                        elif self.active_input == "boss_hp": self.boss_hp = self.handle_text_input(self.boss_hp, event)
+                        elif self.active_input == "boss_speed": self.boss_speed = self.handle_text_input(self.boss_speed, event)
+                        elif self.active_input == "boss_weapon": self.boss_weapon = self.handle_text_input(self.boss_weapon, event)
                         
                         if mods & pygame.KMOD_CTRL:
                             if event.key == pygame.K_s: self.save_scene(self.current_level_path)
