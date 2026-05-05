@@ -112,15 +112,12 @@ class Game:
 
                     if info['type'] == 'static':
                         if info.get('category') == 'Danger':
-                            # Set damage to 0 for the base tile to prevent premature contact damage
-                            # The damage will instead be dealt by the explosion radius
-                            tile = ExplodingTile(x, y, self.resources.get_image(item_id), parallax, damage=0)
+                            # Exploding platforms from the 'Danger' category
+                            tile = ExplodingTile(x, y, self.resources.get_image(item_id), parallax)
                             self.platforms.add(tile)
                             self.entities.add(tile)
                         else:
                             self.platforms.add(Tile(x, y, self.resources.get_image(item_id), parallax, damage=info.get('damage', 0)))
-                    elif info['type'] == 'decor':
-                        self.decors.add(Tile(x, y, self.resources.get_image(item_id), parallax))
                     elif info['category'] == 'Weapons':
                         self.items.add(WorldItem(x, y, actual_id, self.resources.get_image(item_id), parallax))
                     elif info['type'] == 'entity':

@@ -51,7 +51,7 @@ class BaseEnemy(PhysicsEntity):
         if self.hp <= 0:
             self.kill()
 
-    def update(self, platforms, player_rect=None, **kwargs):
+    def update(self, platforms, player=None, **kwargs):
         # Handle Hit Recovery
         if self.is_hit:
             if pygame.time.get_ticks() - self.hit_timer > self.hit_duration:

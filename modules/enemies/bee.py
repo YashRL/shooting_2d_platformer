@@ -21,9 +21,10 @@ class BeeEnemy(BaseEnemy):
             frames['fly'].append(pygame.transform.scale(img, (36, 36)))
         self.animations = AnimationManager(frames)
 
-    def update_ai(self, player_rect):
-        if not player_rect: return
+    def update_ai(self, player):
+        if not player: return
         
+        player_rect = player.rect
         dist_to_player = pygame.Vector2(self.rect.center).distance_to(pygame.Vector2(player_rect.center))
         
         if dist_to_player < self.chase_range:
@@ -66,9 +67,9 @@ class BeeEnemy(BaseEnemy):
         else:
             self.vel = pygame.Vector2(0, 0)
 
-    def update(self, platforms, player_rect=None, **kwargs):
-        self.update_ai(player_rect)
+    def update(self, platforms, player=None, **kwargs):
+        self.update_ai(player)
         self.move_towards_target(platforms)
         
         # Base class handles physics application and animation cycling
-        super().update(platforms, **kwargs)
+        super().update(platforms, player=player, **kwargs)

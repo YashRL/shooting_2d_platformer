@@ -191,6 +191,24 @@
         "damage": 1,
         "speed": 10
       }
+    },
+    "E_R_B": {
+      "category": "Enemies",
+      "name": "Big Rabbit",
+      "asset": "Assets/PNG/Enemies/Tiles/big_rabit/walk_1.png",
+      "type": "entity",
+      "module": "modules.enemies.rabbit",
+      "class": "RabbitEnemy",
+      "properties": { "hp": 80, "speed": 2.5, "damage": 1, "variant": "big", "jump_power": -14 }
+    },
+    "E_R_T": {
+      "category": "Enemies",
+      "name": "Tiny Rabbit",
+      "asset": "Assets/PNG/Enemies/Tiles/Tiny_rabit/walk_1.png",
+      "type": "entity",
+      "module": "modules.enemies.rabbit",
+      "class": "RabbitEnemy",
+      "properties": { "hp": 50, "speed": 4.0, "damage": 1, "variant": "tiny", "jump_power": -10 }
     }
   }
 }
