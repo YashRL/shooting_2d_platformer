@@ -62,6 +62,33 @@ class ResourceManager:
                         if direction:
                             self.registry[full_id]['direction'] = direction
 
+        # 2b. Generate Tinted Blueprints (Scaling existing tilesets)
+        # Structure: (Source Folder, Category Name, Registry Prefix, Tint, Damage, Extra Properties)
+        blueprints = [
+            ('Green_Grass', 'Danger', 'DANGER', [255, 100, 100], 5, {}),
+            ('Green_Grass', 'Ice', 'ICE', [150, 200, 255], 0, {'friction': 0.05}),
+            ('Green_Grass', 'Mud', 'MUD', [139, 69, 19], 0, {'friction': 0.8})
+        ]
+
+        for src_folder, cat, prefix, tint, dmg, extra_props in blueprints:
+            src_path = os.path.join(base_tiles_path, src_folder)
+            if os.path.exists(src_path):
+                for f in os.listdir(src_path):
+                    if f.endswith('.png'):
+                        item_id = f.split('.')[0]
+                        full_id = f"{prefix}_{item_id}"
+                        
+                        self.registry[full_id] = {
+                            'category': cat,
+                            'name': f"{cat} {item_id}",
+                            'asset': os.path.join(src_path, f),
+                            'type': 'static',
+                            'parallax_factor': 1.0,
+                            'damage': dmg,
+                            'tint': tint,
+                            'properties': extra_props
+                        }
+
         # 3. Pre-load images (only once per unique asset + tint combination)
         self.tinted_images = {} # Cache for tinted versions
 
