@@ -43,19 +43,13 @@ class ResourceManager:
                 for f in os.listdir(path):
                     if f.endswith('.png'):
                         item_id = f.split('.')[0]
-                        # Use a prefix to avoid ID collisions if necessary, or just the number
-                        # To keep CSV simple, let's use the number. 
-                        # NOTE: If numbers overlap between folders, we should use 'Folder_ID'
                         full_id = f"{folder}_{item_id}" 
                         
-                        # Special directional handling for Pipes
                         direction = None
                         if folder == 'Pipes' and item_id in ['up', 'down', 'left', 'right']:
                             direction = item_id
 
                         damage_val = 1 if cat in ['Purple Grass', 'Purple Grass v2'] else 0
-                        if damage_val > 0:
-                            print(f"[DEBUG] Tile {full_id} assigned damage: {damage_val}")
                         
                         self.registry[full_id] = {
                             'category': cat,
@@ -68,21 +62,25 @@ class ResourceManager:
                         if direction:
                             self.registry[full_id]['direction'] = direction
 
-        # 3. Pre-load images
+        # 3. Pre-load images (only once per unique asset + tint combination)
+        self.tinted_images = {} # Cache for tinted versions
+
         for item_id, info in self.registry.items():
-            # Ensure parallax_factor exists for JSON-loaded items too
             if 'parallax_factor' not in info:
                 info['parallax_factor'] = 1.0
             
-            try:
-                img = pygame.image.load(info['asset']).convert_alpha()
-                img = pygame.transform.scale(img, (self.tile_size, self.tile_size))
-                self.images[item_id] = img
-            except Exception as e:
-                print(f"Error loading asset {info['asset']}: {e}")
-                surf = pygame.Surface((self.tile_size, self.tile_size))
-                surf.fill((255, 0, 255))
-                self.images[item_id] = surf
+            # Use asset path as key for base images to save memory
+            asset_path = info['asset']
+            if asset_path not in self.images:
+                try:
+                    img = pygame.image.load(asset_path).convert_alpha()
+                    img = pygame.transform.scale(img, (self.tile_size, self.tile_size))
+                    self.images[asset_path] = img
+                except Exception as e:
+                    print(f"Error loading asset {asset_path}: {e}")
+                    surf = pygame.Surface((self.tile_size, self.tile_size))
+                    surf.fill((255, 0, 255))
+                    self.images[asset_path] = surf
 
     def spawn(self, item_id, x, y, **kwargs):
         # Handle per-instance properties: ID[prop1:val1,prop2:val2]
@@ -139,5 +137,46 @@ class ResourceManager:
             return None
 
     def get_image(self, item_id):
+        # Handle instance properties (e.g., TILE_ID[tint:255,0,0])
         actual_id = item_id.split('[')[0] if '[' in item_id else item_id
-        return self.images.get(actual_id)
+        
+        if actual_id not in self.registry:
+            return None
+            
+        info = self.registry[actual_id]
+        asset_path = info['asset']
+        base_img = self.images.get(asset_path)
+        
+        if not base_img:
+            return None
+
+        # Determine Tint
+        tint = info.get('tint') # From registry
+        
+        # Check for instance-level tint
+        if '[' in item_id:
+            props_str = item_id.split('[')[1][:-1]
+            for pair in props_str.replace(';', '&').split('&'):
+                if ':' in pair:
+                    k, v = pair.split(':')
+                    if k == 'tint':
+                        try:
+                            tint = [int(c) for c in v.split(',')]
+                        except:
+                            pass
+
+        if not tint:
+            return base_img
+
+        # Create/Cache Tinted Version
+        tint_key = f"{asset_path}_{tuple(tint)}"
+        if tint_key not in self.tinted_images:
+            tinted_surf = base_img.copy()
+            # Ensure tint is (R, G, B, A)
+            if len(tint) == 3:
+                tint = (*tint, 255)
+            tinted_surf.fill(tint, special_flags=pygame.BLEND_RGBA_MULT)
+            self.tinted_images[tint_key] = tinted_surf
+            
+        return self.tinted_images[tint_key]
+

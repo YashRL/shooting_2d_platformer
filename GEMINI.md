@@ -13,23 +13,25 @@ A modular, data-driven 2D platformer engine built on top of **Pygame-ce**. The e
 The project is divided into three main layers:
 
 ### 1. Engine Layer (`/engine`)
-- **`loader.py`**: The `ResourceManager` handles `registry.json`, pre-loads assets, dynamically spawns entity classes via `importlib`, and features auto-discovery for nested asset folders.
+- **`loader.py`**: The `ResourceManager` handles `registry.json`, pre-loads assets, and dynamically spawns entities. Features **Instance Property Parsing** with automatic numeric detection (converting editor strings like "250" to ints) and node-based platform initialization.
 - **`physics.py`**: `PhysicsEntity` provides centralized gravity, collision, and terminal velocity logic. Includes consistent `current_ground` detection for standing/carrying logic.
 - **`animation.py`**: `AnimationManager` handles state-based frame cycling, flipping, and red-tinted damage flashes.
-- **`effects.py`**: `EffectManager` manages particles (muzzle flashes), screen shake, and projectile life-cycles. Includes dedicated `Rocket` logic with AOE explosions and smoke trails.
+- **`effects.py`**: `EffectManager` manages particles, screen shake, and projectiles. Now includes a **Projectile Ownership System** (owner tracking) to differentiate between player and enemy bullets, enabling multi-directional combat.
 - **`parallax.py`**: `ParallaxManager` handles infinite looping background layers with dynamic scaling, intensity, and vertical offsets.
 - **`ui.py`**: `UIManager` handles professional HUD elements, including segmented dynamic health bars and icon-based counters.
 
 ### 2. Module Layer (`/modules`)
-- **`player/`**: `FoxPlayer` features variable-height jumping, 2-slot weapon inventory, and interaction logic.
-- **`enemies/`**: `BaseEnemy` framework with `Insect` (ground patrol/edge detection) and `Bee` (advanced flying AI with guard/chase logic).
-- **`weapons/`**: Modular weapon classes (`Pistol`, `SMG`, `RocketLauncher`) driven by registry stats. The **Rocket Launcher** features AOE damage and high-impact screenshake.
+- **`player/`**: `FoxPlayer` features variable-height jumping, weapon inventory, and ownership-aware shooting.
+- **`enemies/`**: 
+    - `BaseEnemy`: Framework for AI and damage handling.
+    - `RabbitEnemy`: erratic "Prankster" AI with dodging, taunting, and personality states.
+    - `BossRabbit`: Extends `RabbitEnemy` with **Tactical Weapon AI**. Relentless aggression while armed; transitions to "Fear/Panic" dash while reloading.
+- **`weapons/`**: Modular weapon classes driven by registry stats.
 - **`world/`**: `Tile` and `WorldItem` classes. Includes specialized `ExplodingTile` for the "Danger" category, `ExplosiveBarrel` (bullet-triggered hazard), `ThrowingKnife` (Invisible 5-tile raycast trap, directional), and directional metadata for `Pipes`.
 
 ### 3. Editor Layer (`editor.py`)
 A professional-grade level creation tool featuring:
-- **Level Launcher**: Menu for loading existing levels and a "Create New" screen for custom dimensions.
-- **Advanced UI**: Two-column layout with a **Nested Categorization System**.
+- **BOSS Category**: Dedicated category for elite enemies with a **Property Sidebar** for customizing `hp`, `speed`, and `weapon` per instance.
 - **Multi-Layer System**: Supports two distinct grid layers: `world` (solid tiles) and `entities` (props, players, enemies, traps).
 - **Directional Placement**: Specialized UI for selecting Trap directions (UP, DOWN, LEFT, RIGHT).
 - **Undo Engine**: 50-step history via **Ctrl + Z**.
@@ -57,12 +59,11 @@ Levels are saved as a pair of files:
 2. **`.json`**: Metadata including theme and parallax settings.
 
 ## 🛠️ Upcoming Roadmap
-- [x] **Phase 1: Hazards & Springs**: Implement jumping springs and tile-based physics for Mud and Toxic Water.
-- [x] **Phase 2: Traps & Crumbling**: Added `ExplodingTile`, `ExplosiveBarrel`, and `ThrowingKnife` hazards.
-- [x] **Phase 3: Moving Platforms**: Node-based pathing for elevators and mobile platforms.
-- [x] **Phase 4: Advanced Combat**: Implemented **Rocket Launcher (RPG)** with AOE and smoke trails.
-- [ ] **Phase 5: Exploration & NPCs**: Weapon-wielding AI (Gunners), the **Stranger Merchant**, and functional Pipe Entrances.
-- [ ] **Sound System**: Implement `engine/sounds.py` for jump, shoot, and hurt effects.
+- [x] **Phase 1-4**: Hazards, Moving Platforms, and RPG mechanics implemented.
+- [x] **Phase 5: Bosses & Tactical AI**: Implemented Boss Rabbit with weapon-wielding AI, projectile ownership, and editor customization.
+- [ ] **Phase 6: Exploration & NPCs**: Implement the **Stranger Merchant** and functional Pipe Entrances.
+- [ ] **Ambient System**: Implement `engine/ambient.py` for leaves, dust, and wind effects.
+- [ ] **Sound System**: Implement `engine/sounds.py` for project-wide SFX.
 - [ ] **Animation Expansion**: Add hurt, death, and reload states to all entities.
 
 ## 🐛 Known Bugs

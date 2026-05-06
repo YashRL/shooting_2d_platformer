@@ -225,6 +225,30 @@
       "module": "modules.enemies.rabbit",
       "class": "RabbitEnemy",
       "properties": { "hp": 50, "speed": 4.0, "damage": 1, "variant": "tiny", "jump_power": -10 }
+    },
+    "DANGER_GRASS": {
+      "category": "Danger",
+      "name": "Danger Grass",
+      "asset": "Assets/PNG/Tiles/Tiles/Green_Grass/6.png",
+      "type": "static",
+      "damage": 5,
+      "tint": [255, 100, 100]
+    },
+    "ICE_GRASS": {
+      "category": "Ice",
+      "name": "Ice Grass",
+      "asset": "Assets/PNG/Tiles/Tiles/Green_Grass/6.png",
+      "type": "static",
+      "tint": [150, 200, 255],
+      "properties": { "friction": 0.05 }
+    },
+    "MUD_GRASS": {
+      "category": "Mud",
+      "name": "Mud Grass",
+      "asset": "Assets/PNG/Tiles/Tiles/Green_Grass/6.png",
+      "type": "static",
+      "tint": [139, 69, 19],
+      "properties": { "friction": 0.8 }
     }
   }
 }
