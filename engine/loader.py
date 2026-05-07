@@ -215,8 +215,9 @@ class ResourceManager:
             target_light_1 = (157, 249, 228) # #9df9e4
             target_light_2 = (157, 248, 228) # #9df8e4
             
-            # Medium Green
-            target_med     = (123, 216, 196) # #7bd8c4
+            # Medium Greens
+            target_med_1   = (123, 216, 196) # #7bd8c4
+            target_med_2   = (99, 185, 167)  # #63b9a7
             
             # Dark Greens
             target_dark_1  = (98, 184, 167)  # #62b8a7
@@ -229,12 +230,14 @@ class ResourceManager:
             repl_dark  = pygame.Color(int(base_col.r * 0.8), int(base_col.g * 0.8), int(base_col.b * 0.8))
 
             pixels = pygame.PixelArray(tinted_surf)
-            # Replace all variants of Light, Medium, and Dark greens
-            pixels.replace(target_light_1, repl_light)
-            pixels.replace(target_light_2, repl_light)
-            pixels.replace(target_med, repl_med)
-            pixels.replace(target_dark_1, repl_dark)
-            pixels.replace(target_dark_2, repl_dark)
+            # Replace all variants of Light, Medium, and Dark greens with 0.1 threshold
+            # This catches "hard to replace" pixels that are slightly off.
+            pixels.replace(target_light_1, repl_light, distance=0.1)
+            pixels.replace(target_light_2, repl_light, distance=0.1)
+            pixels.replace(target_med_1,   repl_med,   distance=0.1)
+            pixels.replace(target_med_2,   repl_med,   distance=0.1)
+            pixels.replace(target_dark_1,  repl_dark,  distance=0.1)
+            pixels.replace(target_dark_2,  repl_dark,  distance=0.1)
             del pixels
             
             # 4. NOW scale the perfectly recolored asset

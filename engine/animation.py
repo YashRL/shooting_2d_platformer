@@ -34,7 +34,7 @@ class AnimationManager:
         if self.flash_red:
             # Full Palette Surgical Flash: Target all green variants
             targets_light = [(157, 249, 228), (157, 248, 228)] # #9df9e4, #9df8e4
-            target_med    = (123, 216, 196)                   # #7bd8c4
+            targets_med   = [(123, 216, 196), (99, 185, 167)]  # #7bd8c4, #63b9a7
             targets_dark  = [(98, 184, 167), (103, 188, 170)]  # #62b8a7, #67bcaa
             
             flash_light = (255, 180, 180)
@@ -43,7 +43,7 @@ class AnimationManager:
             
             pixels = pygame.PixelArray(frame)
             for t in targets_light: pixels.replace(t, flash_light, distance=0.1)
-            pixels.replace(target_med, flash_med, distance=0.1)
+            for t in targets_med: pixels.replace(t, flash_med, distance=0.1)
             for t in targets_dark: pixels.replace(t, flash_dark, distance=0.1)
             del pixels
 
