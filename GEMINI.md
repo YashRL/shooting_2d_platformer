@@ -73,3 +73,6 @@ Levels are saved as a pair of files:
         - Node placement state is reset on item selection.
         - Registry includes `width_tiles` for correct multi-tile scaling.
         - The bug persists despite no obvious hardcoded links, suggesting a subtle state initialization issue in the editor's selection or UI update loop.
+
+
+Tint is working perfectly as we decided but it needs to be improved instead of applying the tinit on etire sprite it was suppose to change or alter on one color

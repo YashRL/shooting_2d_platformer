@@ -32,9 +32,20 @@ class AnimationManager:
         frame = self.animations[self.state][int(self.frame_index)].copy()
         
         if self.flash_red:
-            red_surf = pygame.Surface(frame.get_size()).convert_alpha()
-            red_surf.fill((255, 0, 0, 150))
-            frame.blit(red_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+            # Full Palette Surgical Flash: Target all green variants
+            targets_light = [(157, 249, 228), (157, 248, 228)] # #9df9e4, #9df8e4
+            target_med    = (123, 216, 196)                   # #7bd8c4
+            targets_dark  = [(98, 184, 167), (103, 188, 170)]  # #62b8a7, #67bcaa
+            
+            flash_light = (255, 180, 180)
+            flash_med   = (255, 50, 50)
+            flash_dark  = (180, 0, 0)
+            
+            pixels = pygame.PixelArray(frame)
+            for t in targets_light: pixels.replace(t, flash_light, distance=0.1)
+            pixels.replace(target_med, flash_med, distance=0.1)
+            for t in targets_dark: pixels.replace(t, flash_dark, distance=0.1)
+            del pixels
 
         if self.flip:
             return pygame.transform.flip(frame, True, False)

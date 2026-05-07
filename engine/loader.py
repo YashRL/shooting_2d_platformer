@@ -8,6 +8,8 @@ class ResourceManager:
         self.tile_size = tile_size
         self.registry = {}
         self.images = {}
+        self.tinted_images = {}
+        self.base_assets = {}   # Cache for ORIGINAL unscaled images
         self.load_registry()
 
     def load_registry(self):
@@ -90,8 +92,6 @@ class ResourceManager:
                         }
 
         # 3. Pre-load images (only once per unique asset + tint combination)
-        self.tinted_images = {} # Cache for tinted versions
-
         for item_id, info in self.registry.items():
             if 'parallax_factor' not in info:
                 info['parallax_factor'] = 1.0
@@ -100,9 +100,13 @@ class ResourceManager:
             asset_path = info['asset']
             if asset_path not in self.images:
                 try:
-                    img = pygame.image.load(asset_path).convert_alpha()
-                    img = pygame.transform.scale(img, (self.tile_size, self.tile_size))
-                    self.images[asset_path] = img
+                    # Load and store ORIGINAL unscaled asset
+                    orig_img = pygame.image.load(asset_path).convert_alpha()
+                    self.base_assets[asset_path] = orig_img
+                    
+                    # Store standard scaled version
+                    scaled_img = pygame.transform.scale(orig_img, (self.tile_size, self.tile_size))
+                    self.images[asset_path] = scaled_img
                 except Exception as e:
                     print(f"Error loading asset {asset_path}: {e}")
                     surf = pygame.Surface((self.tile_size, self.tile_size))
@@ -172,7 +176,7 @@ class ResourceManager:
             
         info = self.registry[actual_id]
         asset_path = info['asset']
-        base_img = self.images.get(asset_path)
+        base_img = self.images.get(asset_path) # Pre-scaled base image
         
         if not base_img:
             return None
@@ -198,12 +202,44 @@ class ResourceManager:
         # Create/Cache Tinted Version
         tint_key = f"{asset_path}_{tuple(tint)}"
         if tint_key not in self.tinted_images:
-            tinted_surf = base_img.copy()
-            # Ensure tint is (R, G, B, A)
-            if len(tint) == 3:
-                tint = (*tint, 255)
-            tinted_surf.fill(tint, special_flags=pygame.BLEND_RGBA_MULT)
-            self.tinted_images[tint_key] = tinted_surf
+            # IMPORTANT: Recolor the ORIGINAL asset first for perfect pixel matching
+            orig_surf = self.base_assets.get(asset_path)
+            if not orig_surf:
+                # Fallback if original somehow missing
+                orig_surf = base_img 
+                
+            tinted_surf = orig_surf.copy()
+            
+            # 1. Define the Target Greens (Precise Hexes from User)
+            # Light Greens
+            target_light_1 = (157, 249, 228) # #9df9e4
+            target_light_2 = (157, 248, 228) # #9df8e4
+            
+            # Medium Green
+            target_med     = (123, 216, 196) # #7bd8c4
+            
+            # Dark Greens
+            target_dark_1  = (98, 184, 167)  # #62b8a7
+            target_dark_2  = (103, 188, 170) # #67bcaa
+            
+            # 2. Derive replacement shades
+            base_col = pygame.Color(*tint)
+            repl_med = base_col
+            repl_light = pygame.Color(min(255, int(base_col.r * 1.2)), min(255, int(base_col.g * 1.2)), min(255, int(base_col.b * 1.2)))
+            repl_dark  = pygame.Color(int(base_col.r * 0.8), int(base_col.g * 0.8), int(base_col.b * 0.8))
+
+            pixels = pygame.PixelArray(tinted_surf)
+            # Replace all variants of Light, Medium, and Dark greens
+            pixels.replace(target_light_1, repl_light)
+            pixels.replace(target_light_2, repl_light)
+            pixels.replace(target_med, repl_med)
+            pixels.replace(target_dark_1, repl_dark)
+            pixels.replace(target_dark_2, repl_dark)
+            del pixels
+            
+            # 4. NOW scale the perfectly recolored asset
+            final_surf = pygame.transform.scale(tinted_surf, (self.tile_size, self.tile_size))
+            self.tinted_images[tint_key] = final_surf
             
         return self.tinted_images[tint_key]
 
