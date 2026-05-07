@@ -13,9 +13,9 @@ A modular, data-driven 2D platformer engine built on top of **Pygame-ce**. The e
 The project is divided into three main layers:
 
 ### 1. Engine Layer (`/engine`)
-- **`loader.py`**: The `ResourceManager` handles `registry.json`, pre-loads assets, and dynamically spawns entities. Features **Instance Property Parsing** with automatic numeric detection (converting editor strings like "250" to ints) and node-based platform initialization.
+- **`loader.py`**: The `ResourceManager` handles `registry.json`, pre-loads assets, and dynamically spawns entities. Features **Instance Property Parsing** (converting editor strings like "250" to ints) and a **High-Fidelity Surgical Tinting System**. It performs 3-shade palette replacement on raw unscaled assets before scaling, ensuring perfect pixel matching for target greens while strictly protecting wood/dirt colors (#c47c71, #47324b, #dea989).
+- **`animation.py`**: `AnimationManager` handles state-based frame cycling, flipping, and **Surgical Red-Tinted damage flashes** that only affect green pixels.
 - **`physics.py`**: `PhysicsEntity` provides centralized gravity, collision, and terminal velocity logic. Includes consistent `current_ground` detection for standing/carrying logic.
-- **`animation.py`**: `AnimationManager` handles state-based frame cycling, flipping, and red-tinted damage flashes.
 - **`effects.py`**: `EffectManager` manages particles, screen shake, and projectiles. Now includes a **Projectile Ownership System** (owner tracking) to differentiate between player and enemy bullets, enabling multi-directional combat.
 - **`parallax.py`**: `ParallaxManager` handles infinite looping background layers with dynamic scaling, intensity, and vertical offsets.
 - **`ui.py`**: `UIManager` handles professional HUD elements, including segmented dynamic health bars and icon-based counters.
@@ -73,6 +73,3 @@ Levels are saved as a pair of files:
         - Node placement state is reset on item selection.
         - Registry includes `width_tiles` for correct multi-tile scaling.
         - The bug persists despite no obvious hardcoded links, suggesting a subtle state initialization issue in the editor's selection or UI update loop.
-
-
-Tint is working perfectly as we decided but it needs to be improved instead of applying the tinit on etire sprite it was suppose to change or alter on one color
