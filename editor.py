@@ -95,9 +95,10 @@ class LevelEditor:
         self.menu_scroll_y = 0
         self.edit_scroll_y = 0
         
-        # Grid layers: 0=World(Tiles), 1=Entities(Props, Players, etc)
-        self.grid_world = []
-        self.grid_entities = []
+        # Grid layers: 0=Back(Statics), 1=Logic(Entities), 2=Front(Statics)
+        self.grid_back = []
+        self.grid_logic = []
+        self.grid_front = []
         self.rows = 0
         self.cols = 0
         
@@ -105,6 +106,8 @@ class LevelEditor:
         self.camera_offset = pygame.Vector2(UI_WIDTH + 20, 50)
         self.is_panning = False
         self.last_mouse_pos = (0,0)
+        
+        self.selected_layer = "BACK"
         
         # Moving Platform Node Placement
         self.node_buffer = []
@@ -123,13 +126,13 @@ class LevelEditor:
         self.selected_item = None
 
     def save_state_for_undo(self):
-        state = ([row[:] for row in self.grid_world], [row[:] for row in self.grid_entities])
+        state = ([row[:] for row in self.grid_back], [row[:] for row in self.grid_logic], [row[:] for row in self.grid_front])
         self.undo_stack.append(state)
         if len(self.undo_stack) > self.max_undo: self.undo_stack.pop(0)
 
     def undo(self):
         if self.undo_stack:
-            self.grid_world, self.grid_entities = self.undo_stack.pop()
+            self.grid_back, self.grid_logic, self.grid_front = self.undo_stack.pop()
 
     def zoom(self, amount, center_pos=None):
         old_zoom = self.zoom_level
@@ -173,8 +176,9 @@ class LevelEditor:
             w, h = int(self.new_level_width), int(self.new_level_height)
             name = self.new_level_name if self.new_level_name.endswith('.csv') else self.new_level_name + ".csv"
             self.cols, self.rows = w, h
-            self.grid_world = [['-1' for _ in range(w)] for _ in range(h)]
-            self.grid_entities = [['-1' for _ in range(w)] for _ in range(h)]
+            self.grid_back = [['-1' for _ in range(w)] for _ in range(h)]
+            self.grid_logic = [['-1' for _ in range(w)] for _ in range(h)]
+            self.grid_front = [['-1' for _ in range(w)] for _ in range(h)]
             self.current_level_path = os.path.join(self.levels_dir, name)
             self.save_scene(self.current_level_path)
             self.enter_editing_state()
@@ -182,17 +186,20 @@ class LevelEditor:
 
     def resize_level(self, new_cols, new_rows):
         # Preservation logic: Create new grids and copy old data
-        new_world = [['-1' for _ in range(new_cols)] for _ in range(new_rows)]
-        new_entities = [['-1' for _ in range(new_cols)] for _ in range(new_rows)]
+        new_back = [['-1' for _ in range(new_cols)] for _ in range(new_rows)]
+        new_logic = [['-1' for _ in range(new_cols)] for _ in range(new_rows)]
+        new_front = [['-1' for _ in range(new_cols)] for _ in range(new_rows)]
         
         for r in range(min(self.rows, new_rows)):
             for c in range(min(self.cols, new_cols)):
-                new_world[r][c] = self.grid_world[r][c]
-                new_entities[r][c] = self.grid_entities[r][c]
+                new_back[r][c] = self.grid_back[r][c]
+                new_logic[r][c] = self.grid_logic[r][c]
+                new_front[r][c] = self.grid_front[r][c]
         
         self.save_state_for_undo()
-        self.grid_world = new_world
-        self.grid_entities = new_entities
+        self.grid_back = new_back
+        self.grid_logic = new_logic
+        self.grid_front = new_front
         self.rows = new_rows
         self.cols = new_cols
         print(f"Level Resized to {new_cols}x{new_rows}")
@@ -204,14 +211,14 @@ class LevelEditor:
         self.enter_editing_state()
 
     def save_scene(self, path):
-        # Save as Composite: TILE;ENTITY
+        # Save as Composite: BACK;LOGIC;FRONT
         with open(path, "w", newline="") as f:
             writer = csv.writer(f)
             combined = []
             for r in range(self.rows):
                 row = []
                 for c in range(self.cols):
-                    row.append(f"{self.grid_world[r][c]};{self.grid_entities[r][c]}")
+                    row.append(f"{self.grid_back[r][c]};{self.grid_logic[r][c]};{self.grid_front[r][c]}")
                 combined.append(row)
             writer.writerows(combined)
         
@@ -247,18 +254,45 @@ class LevelEditor:
             if not data: return
             self.rows, self.cols = len(data), len(data[0])
             self.new_level_width, self.new_level_height = str(self.cols), str(self.rows)
-            self.grid_world = [['-1' for _ in range(self.cols)] for _ in range(self.rows)]
-            self.grid_entities = [['-1' for _ in range(self.cols)] for _ in range(self.rows)]
+            self.grid_back = [['-1' for _ in range(self.cols)] for _ in range(self.rows)]
+            self.grid_logic = [['-1' for _ in range(self.cols)] for _ in range(self.rows)]
+            self.grid_front = [['-1' for _ in range(self.cols)] for _ in range(self.rows)]
+            
             for r in range(self.rows):
                 for c in range(self.cols):
                     cell = data[r][c]
-                    if ';' in cell:
-                        w, e = cell.split(';', 1)
-                        self.grid_world[r][c] = w
-                        self.grid_entities[r][c] = e
+                    parts = cell.split(';')
+                    
+                    if len(parts) >= 3:
+                        # New 3-Layer Format
+                        self.grid_back[r][c] = parts[0]
+                        self.grid_logic[r][c] = parts[1]
+                        self.grid_front[r][c] = parts[2]
                     else:
-                        # Legacy support
-                        self.grid_world[r][c] = cell
+                        # Legacy Format (TILE;ENTITY or just TILE)
+                        self.grid_back[r][c] = parts[0]
+                        if len(parts) > 1 and parts[1] != '-1':
+                            ent_id = parts[1]
+                            actual_id = ent_id.split('[')[0]
+                            info = self.resources.registry.get(actual_id)
+                            
+                            if info and info['type'] in ['static', 'decor']:
+                                # If it's a prop/static in entity slot, it's either foreground or background detail
+                                if '[layer:front]' in ent_id.lower():
+                                    self.grid_front[r][c] = ent_id
+                                else:
+                                    # If back is empty, put it in back, otherwise put in front
+                                    if self.grid_back[r][c] == '-1':
+                                        self.grid_back[r][c] = ent_id
+                                    else:
+                                        # Force front and add tag if missing
+                                        if '[layer:front]' not in ent_id.lower():
+                                            self.grid_front[r][c] = f"{ent_id}[layer:front]"
+                                        else:
+                                            self.grid_front[r][c] = ent_id
+                            else:
+                                # Standard logic entity
+                                self.grid_logic[r][c] = ent_id
 
     def draw_grid(self):
         for r in range(self.rows):
@@ -270,36 +304,29 @@ class LevelEditor:
                 rect = pygame.Rect(x, y, self.current_tile_size, self.current_tile_size)
                 pygame.draw.rect(self.screen, (60, 60, 60), rect, 1)
                 
-                # Render Layers
-                val_w = self.grid_world[r][c]
-                val_e = self.grid_entities[r][c]
+                # Render 3 Layers in Depth Order
+                layers_to_draw = [self.grid_back[r][c], self.grid_logic[r][c], self.grid_front[r][c]]
                 
-                if val_w != '-1':
-                    info = self.resources.registry.get(val_w)
-                    factor = info.get('parallax_factor', 1.0) if info else 1.0
-                    # For editor, we might want to toggle parallax or just show it 1:1.
-                    # Let's show it 1:1 for precise placement, but I'll add the factor logic for consistency if desired.
-                    # Actually, in editor, 1:1 is better for placement. 
-                    img = self.resources.get_image(val_w)
-                    if img: self.screen.blit(pygame.transform.scale(img, (self.current_tile_size, self.current_tile_size)), (x, y))
-                
-                if val_e != '-1':
-                    actual_id = val_e.split('[')[0] if '[' in val_e else val_e
+                for i, val in enumerate(layers_to_draw):
+                    if val == '-1': continue
+                    
+                    actual_id = val.split('[')[0] if '[' in val else val
                     info = self.resources.registry.get(actual_id)
-                    img = self.resources.get_image(val_e)
+                    img = self.resources.get_image(val)
+                    
                     if img:
-                        # Use width_tiles from properties if available, default to aspect ratio
                         w_tiles = 1
                         if info:
                             w_tiles = info.get('properties', {}).get('width_tiles', 1)
                         
                         w_scale = w_tiles * self.current_tile_size
+                        # Note: grid_logic items (like Bosses/Enemies) might have special drawing needs, 
+                        # but for the editor, a simple scaled blit is usually sufficient.
                         self.screen.blit(pygame.transform.scale(img, (int(w_scale), self.current_tile_size)), (x, y))
                         
-                        # Extra visual for Moving Platform nodes
-                        if info and info.get('category') == "Platforms" and '[' in val_e:
-                            props_str = val_e.split('[')[1][:-1]
-                            # Robust split: handles legacy ';' and new '&'
+                        # Extra visual for Moving Platform nodes (only in Logic layer)
+                        if i == 1 and info and info.get('category') == "Platforms" and '[' in val:
+                            props_str = val.split('[')[1][:-1]
                             pairs = props_str.replace(';', '&').split('&')
                             for pair in pairs:
                                 if pair.startswith('nodes:'):
@@ -572,6 +599,26 @@ class LevelEditor:
             self.screen.blit(self.small_font.render(self.boss_weapon, True, WHITE), (wpn_r.x + 10, wpn_r.y + 5))
             if wpn_r.collidepoint(mx, my) and m_clicked: self.active_input, self.caret_index = "boss_weapon", len(self.boss_weapon)
 
+        # Layer Selection (For Tiles and Props) - FIXED POSITION AT BOTTOM
+        info = self.resources.registry.get(self.selected_item) if self.selected_item else None
+        if info and info.get('type') in ['static', 'decor']:
+            layer_y = SCREEN_HEIGHT - 120 # Fixed position above Play button
+            
+            # Dark background for the property area
+            pygame.draw.rect(self.screen, DARK_GRAY, (5, layer_y - 5, UI_WIDTH - 10, 65), border_radius=5)
+            pygame.draw.rect(self.screen, LIGHT_GRAY, (5, layer_y - 5, UI_WIDTH - 10, 65), 1, border_radius=5)
+
+            self.screen.blit(self.small_font.render("RENDER LAYER:", True, GRAY), (20, layer_y))
+            btns = ["BACK", "FRONT"]
+            for i, l in enumerate(btns):
+                r = pygame.Rect(10 + i * (btn_w + 10), layer_y + 20, btn_w, 25)
+                color = ACCENT if self.selected_layer == l else BLACK
+                pygame.draw.rect(self.screen, color, r, border_radius=5)
+                self.screen.blit(self.small_font.render(l, True, WHITE), self.small_font.render(l, True, WHITE).get_rect(center=r.center))
+                if r.collidepoint(mx, my) and m_clicked and not self.mouse_debounce:
+                    self.selected_layer = l
+                    self.mouse_debounce = True
+
         play_rect = pygame.Rect(20, SCREEN_HEIGHT - 50, UI_WIDTH - 40, 35)
         pygame.draw.rect(self.screen, (0, 150, 0), play_rect, border_radius=8)
         self.screen.blit(self.font.render("PLAY SCENE", True, WHITE), self.font.render("PLAY SCENE", True, WHITE).get_rect(center=play_rect.center))
@@ -584,20 +631,22 @@ class LevelEditor:
             y1, y2 = min(self.selection_start[1], self.selection_end[1]), max(self.selection_start[1], self.selection_end[1])
             
             self.clipboard = {
-                'world': [[self.grid_world[y][x] for x in range(x1, x2 + 1)] for y in range(y1, y2 + 1)],
-                'entities': [[self.grid_entities[y][x] for x in range(x1, x2 + 1)] for y in range(y1, y2 + 1)]
+                'back': [[self.grid_back[y][x] for x in range(x1, x2 + 1)] for y in range(y1, y2 + 1)],
+                'logic': [[self.grid_logic[y][x] for x in range(x1, x2 + 1)] for y in range(y1, y2 + 1)],
+                'front': [[self.grid_front[y][x] for x in range(x1, x2 + 1)] for y in range(y1, y2 + 1)]
             }
-            print(f"Selection copied: {len(self.clipboard['world'][0])}x{len(self.clipboard['world'])}")
+            print(f"Selection copied: {len(self.clipboard['back'][0])}x{len(self.clipboard['back'])}")
 
     def paste_selection(self, gx, gy):
         if self.clipboard:
             self.save_state_for_undo()
-            for r, row in enumerate(self.clipboard['world']):
+            for r, row in enumerate(self.clipboard['back']):
                 for c, val in enumerate(row):
                     tr, tc = gy + r, gx + c
                     if 0 <= tr < self.rows and 0 <= tc < self.cols:
-                        self.grid_world[tr][tc] = val
-                        self.grid_entities[tr][tc] = self.clipboard['entities'][r][c]
+                        self.grid_back[tr][tc] = val
+                        self.grid_logic[tr][tc] = self.clipboard['logic'][r][c]
+                        self.grid_front[tr][tc] = self.clipboard['front'][r][c]
             print("Selection pasted.")
 
     def handle_editing_input(self):
@@ -613,55 +662,66 @@ class LevelEditor:
                     if self.current_tool == "stamp":
                         if self.selected_item:
                             info = self.resources.registry[self.selected_item]
-                            if info.get('category') == "Platforms":
-                                if self.placing_nodes_for is None:
-                                    self.placing_nodes_for = (gx, gy)
-                                    self.node_buffer = [(gx * TILE_SIZE, gy * TILE_SIZE)]
-                                    self.mouse_debounce = True
-                                elif len(self.node_buffer) < 3:
-                                    self.node_buffer.append((gx * TILE_SIZE, gy * TILE_SIZE))
-                                    self.mouse_debounce = True
-                                    if len(self.node_buffer) == 3:
-                                        # Finished placing nodes
-                                        px, py = self.placing_nodes_for
-                                        nodes_str = "|".join([f"{nx},{ny}" for nx, ny in self.node_buffer])
-                                        loop_str = "true" if self.platform_loop else "false"
-                                        entity_data = f"{self.selected_item}[nodes:{nodes_str}&speed:{self.platform_speed}&loop:{loop_str}]"
-                                        self.save_state_for_undo()
-                                        self.grid_entities[py][px] = entity_data
-                                        self.placing_nodes_for = None
-                                        self.node_buffer = []
-                                return
-
-                            if info['type'] == 'static':
-                                if self.grid_world[gy][gx] != self.selected_item:
-                                    self.save_state_for_undo(); self.grid_world[gy][gx] = self.selected_item
-                            else:
+                            
+                            # Routing Logic for 3-Layer System
+                            if info.get('category') in ["Platforms", "Traps", "BOSS", "Players", "Enemies", "Weapons", "Characters", "Barrels"]:
+                                # Interactive/Dynamic items always go to Logic layer
                                 item_to_place = self.selected_item
                                 if info['category'] == "Traps":
                                     item_to_place = f"{self.selected_item}[direction:{self.selected_direction}]"
                                 elif info['category'] == "BOSS":
                                     item_to_place = f"{self.selected_item}[hp:{self.boss_hp}&speed:{self.boss_speed}&weapon:{self.boss_weapon}]"
+                                elif info['category'] == "Platforms":
+                                    # Handle platform node placement
+                                    if self.placing_nodes_for is None:
+                                        self.placing_nodes_for = (gx, gy)
+                                        self.node_buffer = [(gx * TILE_SIZE, gy * TILE_SIZE)]
+                                        self.mouse_debounce = True
+                                        return
+                                    elif len(self.node_buffer) < 3:
+                                        self.node_buffer.append((gx * TILE_SIZE, gy * TILE_SIZE))
+                                        self.mouse_debounce = True
+                                        if len(self.node_buffer) == 3:
+                                            px, py = self.placing_nodes_for
+                                            nodes_str = "|".join([f"{nx},{ny}" for nx, ny in self.node_buffer])
+                                            loop_str = "true" if self.platform_loop else "false"
+                                            item_to_place = f"{self.selected_item}[nodes:{nodes_str}&speed:{self.platform_speed}&loop:{loop_str}]"
+                                            self.save_state_for_undo()
+                                            self.grid_logic[py][px] = item_to_place
+                                            self.placing_nodes_for = None
+                                            self.node_buffer = []
+                                        return
                                 
-                                if self.grid_entities[gy][gx] != item_to_place:
-                                    self.save_state_for_undo(); self.grid_entities[gy][gx] = item_to_place
-                                    self.mouse_debounce = True # Prevent entity spam
+                                if self.grid_logic[gy][gx] != item_to_place:
+                                    self.save_state_for_undo(); self.grid_logic[gy][gx] = item_to_place
+                                    self.mouse_debounce = True
+
+                            elif info['type'] in ['static', 'decor']:
+                                # Static items (Tiles/Props) go to Back or Front
+                                item_to_place = f"{self.selected_item}[layer:{self.selected_layer.lower()}]"
+                                if self.selected_layer == "FRONT":
+                                    if self.grid_front[gy][gx] != item_to_place:
+                                        self.save_state_for_undo(); self.grid_front[gy][gx] = item_to_place
+                                else:
+                                    if self.grid_back[gy][gx] != item_to_place:
+                                        self.save_state_for_undo(); self.grid_back[gy][gx] = item_to_place
+                    
                     elif self.current_tool == "erase":
-                        # FIX: Eraser now clears both layers regardless of selected category.
-                        # This ensures 'saved entities' or props can be erased even if a Tile category is active.
-                        if self.grid_world[gy][gx] != "-1" or self.grid_entities[gy][gx] != "-1":
+                        if self.grid_back[gy][gx] != "-1" or self.grid_logic[gy][gx] != "-1" or self.grid_front[gy][gx] != "-1":
                             self.save_state_for_undo()
-                            self.grid_world[gy][gx] = "-1"
-                            self.grid_entities[gy][gx] = "-1"
+                            self.grid_back[gy][gx] = "-1"
+                            self.grid_logic[gy][gx] = "-1"
+                            self.grid_front[gy][gx] = "-1"
                     elif self.current_tool == "select":
                         if not self.selection_start: self.selection_start = (gx, gy)
                         self.selection_end = (gx, gy)
                 
-                if m_keys[2]: # Right Click always erases both (Fast clear)
-                    if self.grid_world[gy][gx] != "-1" or self.grid_entities[gy][gx] != "-1":
+                if m_keys[2]: # Right Click Fast Erase
+                    if self.grid_back[gy][gx] != "-1" or self.grid_logic[gy][gx] != "-1" or self.grid_front[gy][gx] != "-1":
                         self.save_state_for_undo()
-                        self.grid_world[gy][gx] = "-1"
-                        self.grid_entities[gy][gx] = "-1"
+                        self.grid_back[gy][gx] = "-1"
+                        self.grid_logic[gy][gx] = "-1"
+                        self.grid_front[gy][gx] = "-1"
 
         if m_keys[1]:
             if not self.is_panning: self.is_panning, self.last_mouse_pos = True, (mx, my)

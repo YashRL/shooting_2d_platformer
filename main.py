@@ -73,7 +73,8 @@ class Game:
         self.parallax_manager = ParallaxManager(f"Assets/PNG/Backgrounds/{theme}", SCREEN_HEIGHT, intensity, y_offset)
         
         self.platforms = pygame.sprite.Group()
-        self.decors = pygame.sprite.Group() # New group for props
+        self.background_statics = pygame.sprite.Group()
+        self.foreground_statics = pygame.sprite.Group()
         self.entities = pygame.sprite.Group()
         self.items = pygame.sprite.Group()
         self.player = None
@@ -97,9 +98,8 @@ class Game:
                 if cell == '-1': continue
                 x, y = c * 36, r * 36
 
-                # Split cell into World and Entity layers
-                parts = cell.split(';', 1)
-                ids_to_spawn = parts if len(parts) > 1 else [cell]
+                # Split cell into Back, Logic, and Front layers
+                ids_to_spawn = cell.split(';')
 
                 for item_id in ids_to_spawn:
                     if item_id == '-1': continue
@@ -109,15 +109,28 @@ class Game:
                     if not info: continue
 
                     parallax = info.get('parallax_factor', 1.0)
+                    
+                    # Parse layer property (default to back)
+                    layer = "back"
+                    if '[' in item_id:
+                        if 'layer:front' in item_id.lower(): layer = "front"
 
-                    if info['type'] == 'static':
-                        if info.get('category') == 'Danger':
+                    if info['type'] in ['static', 'decor']:
+                        sprite = None
+                        if info.get('category') == 'Danger' and info['type'] == 'static':
                             # Exploding platforms from the 'Danger' category
-                            tile = ExplodingTile(x, y, self.resources.get_image(item_id), parallax)
-                            self.platforms.add(tile)
-                            self.entities.add(tile)
+                            sprite = ExplodingTile(x, y, self.resources.get_image(item_id), parallax)
+                            self.platforms.add(sprite)
+                            self.entities.add(sprite)
                         else:
-                            self.platforms.add(Tile(x, y, self.resources.get_image(item_id), parallax, damage=info.get('damage', 0)))
+                            sprite = Tile(x, y, self.resources.get_image(item_id), parallax, damage=info.get('damage', 0))
+                            if info['type'] == 'static':
+                                self.platforms.add(sprite)
+                        
+                        if sprite:
+                            if layer == "front": self.foreground_statics.add(sprite)
+                            else: self.background_statics.add(sprite)
+
                     elif info['category'] == 'Weapons':
                         self.items.add(WorldItem(x, y, actual_id, self.resources.get_image(item_id), parallax))
                     elif info['type'] == 'entity':
@@ -188,22 +201,33 @@ class Game:
             # Draw
             self.parallax_manager.draw(self.screen, self.camera.camera.x)
             
-            # 1. Draw platforms (solid tiles) - Base Layer
-            for sprite in self.platforms: self.screen.blit(sprite.image, self.camera.apply(sprite))
+            # 1. Draw Background Statics (Tiles and Props)
+            for sprite in self.background_statics: self.screen.blit(sprite.image, self.camera.apply(sprite))
             
-            # 2. Draw decors (props like grass, clouds, etc) - Foreground/Detail Layer
-            for sprite in self.decors: self.screen.blit(sprite.image, self.camera.apply(sprite))
-            
+            # 2. Draw Items
             for item in self.items: self.screen.blit(item.image, self.camera.apply(item))
-            for entity in self.entities: 
-                if entity not in self.platforms:
-                    if hasattr(entity, 'draw'):
-                        entity.draw(self.screen, self.camera)
-                    else:
-                        self.screen.blit(entity.image, self.camera.apply(entity))
             
+            # 3. Draw Entities (Enemies, Platforms, etc)
+            for entity in self.entities: 
+                if hasattr(entity, 'draw'):
+                    entity.draw(self.screen, self.camera)
+                else:
+                    self.screen.blit(entity.image, self.camera.apply(entity))
+            
+            # Also draw platforms that might not be in entities (moving platforms are in self.platforms)
+            for platform in self.platforms:
+                if platform not in self.entities and platform not in self.background_statics and platform not in self.foreground_statics:
+                    if hasattr(platform, 'draw'):
+                        platform.draw(self.screen, self.camera)
+                    else:
+                        self.screen.blit(platform.image, self.camera.apply(platform))
+
+            # 4. Effects and Player
             self.effect_manager.draw(self.screen, self.camera)
             self.player.draw(self.screen, self.camera)
+            
+            # 5. Draw Foreground Statics (Tiles and Props)
+            for sprite in self.foreground_statics: self.screen.blit(sprite.image, self.camera.apply(sprite))
             
             # HUD
             self.ui_manager.draw_health_bar(self.screen, 20, 20, self.player.hp, self.player.max_hp, width_in_segments=6)
