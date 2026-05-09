@@ -10,7 +10,7 @@
       "name": "Boss Rabbit",
       "asset": "Assets/PNG/Enemies/Tiles/big_rabit/walk_1.png",
       "type": "entity",
-      "module": "modules.enemies.boss_rabbit",
+      "module": "src.game.entities.enemies.BossRabbit",
       "class": "BossRabbit",
       "properties": { 
         "hp": 250, 
@@ -26,7 +26,7 @@
       "name": "Merchant",
       "asset": "Assets/PNG/Characters/Merchant/frames/base_idle_styled/1.png",
       "type": "entity",
-      "module": "modules.characters.merchant",
+      "module": "src.game.entities.npcs.Merchant",
       "class": "Merchant"
     },
     "1": {
@@ -47,7 +47,7 @@
       "name": "Fox Character",
       "asset": "Assets/PNG/Players/Tiles/fox/walk1.png",
       "type": "entity",
-      "module": "modules.player.fox",
+      "module": "src.game.entities.players.FoxPlayer",
       "class": "FoxPlayer"
     },
     "E_I": {
@@ -55,8 +55,8 @@
       "name": "Insect",
       "asset": "Assets/PNG/Enemies/Tiles/Insect/walk1.png",
       "type": "entity",
-      "module": "modules.enemies.insect",
-      "class": "InsectEnemy",
+      "module": "src.game.entities.enemies.Insect",
+      "class": "Insect",
       "properties": { "hp": 40, "speed": 1.5, "damage": 1, "resistance": 0.2 }
     },
     "E_b": {
@@ -64,8 +64,8 @@
       "name": "Bee",
       "asset": "Assets/PNG/Enemies/Tiles/Bee/fly1.png",
       "type": "entity",
-      "module": "modules.enemies.bee",
-      "class": "BeeEnemy",
+      "module": "src.game.entities.enemies.Bee",
+      "class": "Bee",
       "properties": { "hp": 60, "speed": 1.8, "damage": 1, "resistance": 0.4 }
     },
     "P": {
@@ -73,14 +73,14 @@
       "name": "Pistol",
       "asset": "Assets/PNG/Weapons/Tiles/pistol.png",
       "type": "entity",
-      "module": "modules.weapons.pistol",
+      "module": "src.game.weapons.Pistol",
       "class": "Pistol",
       "properties": {
         "ammo_capacity": 6,
         "reload_speed": 1.0,
-        "fire_rate": 0.3,
+        "fire_rate": 400,
         "damage": 20,
-        "shoot_type": "single",
+        "shoot_type": "semi",
         "bullet_speed": 12
       }
     },
@@ -89,12 +89,12 @@
       "name": "Chicago Typewriter",
       "asset": "Assets/PNG/Weapons/Tiles/chicago_typwriter.png",
       "type": "entity",
-      "module": "modules.weapons.smg",
+      "module": "src.game.weapons.SMG",
       "class": "SMG",
       "properties": {
         "ammo_capacity": 30,
         "reload_speed": 2.0,
-        "fire_rate": 0.1,
+        "fire_rate": 100,
         "damage": 15,
         "shoot_type": "auto",
         "bullet_speed": 15
@@ -105,12 +105,12 @@
       "name": "Rocket Launcher",
       "asset": "Assets/PNG/Weapons/Tiles/ROCKET_LAUNCHER/RPG.png",
       "type": "entity",
-      "module": "modules.weapons.rocket_launcher",
+      "module": "src.game.weapons.RocketLauncher",
       "class": "RocketLauncher",
       "properties": {
         "ammo_capacity": 1,
         "reload_speed": 3.0,
-        "fire_rate": 1.0,
+        "fire_rate": 1500,
         "damage": 50,
         "shoot_type": "rocket",
         "bullet_speed": 8
@@ -156,7 +156,7 @@
       "name": "Moving Platform",
       "asset": "Assets/PNG/Tiles/Tiles/Green_Grass/6.png",
       "type": "entity",
-      "module": "modules.world.moving_platform",
+      "module": "src.game.world.MovingPlatform",
       "class": "MovingPlatform",
       "properties": {
         "speed": 2.0,
@@ -169,8 +169,8 @@
       "name": "Metal Moving Platform",
       "asset": "Assets/PNG/Tiles/Tiles/Moving_Platform/middle.png",
       "type": "entity",
-      "module": "modules.world.moving_platform",
-      "class": "MetalMovingPlatform",
+      "module": "src.game.world.MovingPlatform",
+      "class": "MovingPlatform",
       "properties": {
         "speed": 2.0,
         "loop": true,
@@ -182,7 +182,7 @@
       "name": "Explosive Barrel",
       "asset": "Assets/PNG/Tiles/Tiles/Barrel/203.png",
       "type": "entity",
-      "module": "modules.world.barrel",
+      "module": "src.game.world.ExplosiveBarrel",
       "class": "ExplosiveBarrel"
     },
     "TRAMPOLINE": {
@@ -190,7 +190,7 @@
       "name": "Trampoline",
       "asset": "Assets/PNG/Tiles/Tiles/Trampoline/up.png",
       "type": "entity",
-      "module": "modules.world.trampoline",
+      "module": "src.game.world.Trampoline",
       "class": "Trampoline",
       "properties": {
         "jump_power": 18
@@ -201,7 +201,7 @@
       "name": "Throwing Knife",
       "asset": "Assets/PNG/Throw/Knife.png",
       "type": "entity",
-      "module": "modules.world.trap",
+      "module": "src.game.world.ThrowingKnife",
       "class": "ThrowingKnife",
       "properties": {
         "damage": 1,
@@ -213,7 +213,7 @@
       "name": "Big Rabbit",
       "asset": "Assets/PNG/Enemies/Tiles/big_rabit/walk_1.png",
       "type": "entity",
-      "module": "modules.enemies.rabbit",
+      "module": "src.game.entities.enemies.RabbitEnemy",
       "class": "RabbitEnemy",
       "properties": { "hp": 80, "speed": 2.5, "damage": 1, "variant": "big", "jump_power": -14 }
     },
@@ -222,7 +222,7 @@
       "name": "Tiny Rabbit",
       "asset": "Assets/PNG/Enemies/Tiles/Tiny_rabit/walk_1.png",
       "type": "entity",
-      "module": "modules.enemies.rabbit",
+      "module": "src.game.entities.enemies.RabbitEnemy",
       "class": "RabbitEnemy",
       "properties": { "hp": 50, "speed": 4.0, "damage": 1, "variant": "tiny", "jump_power": -10 }
     },
