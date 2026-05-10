@@ -1,105 +1,102 @@
-# TheTreeSentinal Engine 2.0 - Comprehensive Architecture Design
+# TheTreeSentinal Engine 2.0 - Technical Architecture & API Reference
 
-## 🏛️ System Philosophy
-Engine 2.0 is a **Registry-Driven Object-Oriented Framework**. Every gameplay actor is a standalone module, and the engine acts as an orchestrator that injects dependencies (Assets, Physics, Effects) into these modules at runtime.
+## 🏗️ Architectural Paradigm
+TheTreeSentinal Engine 2.0 is built using a **Modular Registry-Driven Architecture**. It enforces strict Java-style packaging and a "One Class, One Script" philosophy. 
 
----
-
-## 🏗️ Core Engine Package (`src.engine`)
-
-### 📦 `core` - Foundation
-| Script | Class | Logic / Pseudo-Code |
-| :--- | :--- | :--- |
-| `ResourceManager.py` | `ResourceManager` | **Logic:** Loads `registry.json`. Performs **Surgical Tinting** using `pygame.PixelArray` to replace specific greens with 3-shade palettes while protecting browns. Spawns entities by mapping strings to class names via `importlib`. |
-| `PhysicsEntity.py` | `PhysicsEntity` | **Logic:** Two-pass collision. `apply_physics` calculates X-move, checks collisions, then calculates Y-move (gravity), then checks collisions. This prevents "corner-snagging". |
-| `Registry.py` | `Registry` | **Logic:** Static helper that auto-discovers tiles by scanning `Assets/PNG/Tiles/Tiles/` and generates unique IDs for numeric filenames. |
-
-### 📦 `graphics` - Rendering
-| Script | Class | Logic / Pseudo-Code |
-| :--- | :--- | :--- |
-| `AnimationManager.py`| `AnimationManager`| **Logic:** Frame cycling using a timer. `get_current_frame()` returns a copy of the surface. If `flash_red` is True, it surgically replaces green pixels with red shades for 1 frame. |
-| `ParallaxManager.py` | `ParallaxManager` | **Logic:** Holds a list of `ParallaxLayer`. `draw()` iterates through them, applying individual `factor` offsets based on camera position. |
-| `ParallaxLayer.py`   | `ParallaxLayer`   | **Logic:** Infinite loop drawing. `x_offset = (cam_x * factor) % width`. Draws the image twice at `(-offset)` and `(width - offset)`. |
-| `EffectManager.py`   | `EffectManager`   | **Logic:** Orchestrator for `Particles` and `Projectiles`. `get_shake_offset()` returns random `(x, y)` if `shake_timer > now`. |
-| `Particle.py`       | `Particle`       | **Logic:** Simple sprite that moves by a velocity vector and calls `self.kill()` after `lifetime` expires. |
-| `Projectile.py`     | `Bullet`, `Rocket`| **Logic:** `Bullet` is linear movement. `Rocket` includes a smokescreen particle emitter in its `update()` and a radial damage scan in its `explode()`. |
-
-### 📦 `ui` - Interface
-| Script | Class | Logic / Pseudo-Code |
-| :--- | :--- | :--- |
-| `UIManager.py`       | `UIManager`       | **Logic:** Segmented bars. Draws a base 'Empty' bar, then draws 'Full' segments onto a temporary surface and blits a clipped portion of that surface to match HP %. |
+- **State Management:** Driven by unified JSON level files.
+- **Dependency Injection:** Done via the `ResourceManager`, which handles asset loading and dynamic entity instantiation.
+- **Physics:** Centralized in a base `PhysicsEntity` class using `pygame.Vector2` for sub-pixel precision.
+- **Rendering Pipeline:** Uses a `world_surface` for post-processing before blitting to the main screen.
 
 ---
 
-## 🎮 Game Logic Package (`src.game`)
+## 📂 Package Index
 
-### 📦 `entities` - Actors
-| Script | Class | Logic / Pseudo-Code |
+### 1. `src.engine` (Core Systems)
+| Class | Location | Description |
 | :--- | :--- | :--- |
-| `players/FoxPlayer.py` | `FoxPlayer` | **Logic:** Input state machine. `handle_input` maps keys to velocity. Detects "Hazard" tiles by inflating its hit-rect by 8px and scanning the platform group. |
-| `enemies/BaseEnemy.py` | `BaseEnemy` | **Logic:** Generic damage handler. Implements `take_damage` which applies a knockback vector: `vel.x = (direction * knockback_force)`. |
-| `enemies/RabbitEnemy.py`| `RabbitEnemy`| **Logic:** Personality AI. Randomly switches between 'walk', 'dodge', and 'taunt' states based on a timer and player distance. |
-| `enemies/BossRabbit.py` | `BossRabbit` | **Logic:** Tactical AI. Tries to maintain an "ideal distance" (5 tiles) from the player. Flees and triggers `weapon.reload()` when ammo is empty. |
-| `enemies/Insect.py`   | `Insect`      | **Logic:** Patrol AI. Performs "Edge Detection" by checking a 2x2 pixel area in front and below its feet. If no collision, it flips direction. |
-| `enemies/Bee.py`      | `Bee`         | **Logic:** Flying AI. Uses vector normalization to move toward the player. If it hits a wall, it attempts to "slide" along the axis with the smallest difference. |
-| `npcs/Merchant.py`    | `Merchant`    | **Logic:** Static interaction actor. Placeholder for shop logic. |
+| **`ResourceManager`** | `core/ResourceManager.py` | Handles asset loading and dynamic entity instantiation. Injects `item_id`, `asset`, and `category` into all spawned entities. |
+| **`PhysicsEntity`** | `core/PhysicsEntity.py` | Base class for movement and two-pass collision detection. |
+| **`AnimationManager`** | `graphics/AnimationManager.py` | State-based frame cycling with support for surgical damage flashes. |
+| **`ParallaxManager`** | `graphics/ParallaxManager.py` | Manages infinite looping background layers. |
+| **`EffectManager`** | `graphics/EffectManager.py` | Orchestrator for particles, screen shake, and projectiles. |
+| **`UIManager`** | `ui/UIManager.py` | Handles HUD rendering: segmented health bars and ammo counters. |
 
-### 📦 `weapons` - Combat
-| Script | Class | Logic / Pseudo-Code |
+### 2. `src.game` (Gameplay Logic)
+| Sub-Package | Key Classes | Description |
 | :--- | :--- | :--- |
-| `BaseWeapon.py`       | `BaseWeapon`     | **Logic:** Timer-based reload. `update()` checks `now - reload_start > reload_speed`. `can_shoot()` checks `ammo > 0` and `fire_rate` cooldown. |
-| `Pistol.py`, `SMG.py`| ...              | **Logic:** Data overrides for `BaseWeapon`. SMG uses `shoot_type = 'auto'`. |
-| `RocketLauncher.py`   | `RocketLauncher` | **Logic:** Overrides `shoot_type` to 'rocket', triggering the `EffectManager.spawn_rocket` logic. |
+| **`entities.players`** | `FoxPlayer` | Main player controller. Respects manual `START` position from level data. |
+| **`entities.enemies`** | `BaseEnemy`, `RabbitEnemy`, `Bee` | AI actors using state-machine personalities. |
+| **`weapons`** | `BaseWeapon`, `Pistol`, `SMG` | Modular weapon logic. Stats and sprites are registry-injected. |
+| **`world`** | `Tile`, `ExplodingTile`, `WorldItem` | Interactive environment items. `WorldItem` wraps standalone weapons. |
 
-### 📦 `world` - Environment
-| Script | Class | Logic / Pseudo-Code |
+### 3. `tools.editor` (Development Suite)
+| Class | Location | Description |
 | :--- | :--- | :--- |
-| `Tile.py`             | `Tile`           | **Logic:** Static collider. Stores `damage` values for poison floor logic. |
-| `ExplodingTile.py`    | `ExplodingTile`  | **Logic:** Proximity trigger. If `player.current_ground == self`, start growth animation. Uses `math.sin` for a red pulsing alpha overlay before `kill()`. |
-| `MovingPlatform.py`   | `MovingPlatform` | **Logic:** Waypoint logic. Moves toward `nodes[idx]`. When `dist < speed`, snaps to node and increments `idx`. |
-| `Trampoline.py`       | `Trampoline`     | **Logic:** Bounce logic. If `player.vel.y > 0` and `colliderect`, sets `player.vel.y = jump_boost`. |
-| `ThrowingKnife.py`    | `ThrowingKnife`  | **Logic:** Invisible Raycast. Has a long `ray_rect`. If player enters `ray_rect`, `triggered = True` and the knife begins moving in its fixed direction. |
+| **`LevelEditor`** | `LevelEditor.py` | State machine (Menu, Editing, Settings). Supports **Manual Player Placement** and **Noir Filters**. |
+| **`EditorCamera`** | `editor/Camera.py` | Panning and zoom logic with screen-to-world coordinate mapping. |
+| **`CommandStack`** | `editor/CommandStack.py` | Undo/Redo implementation via the Command Pattern. |
+| **`UIComponents`** | `editor/UIComponents.py` | OOP GUI Library (Panel, Button, InputBox). |
 
 ---
 
-## 🛠️ Editor Suite (`tools`)
+## 🧬 Core Logic Snippets
 
-### 📦 `LevelEditor.py` - Orchestrator
-**Logic:** State machine (`MENU`, `EDITING`, `SETTINGS`). Dispatches events to UI Panels first; if unhandled, dispatches to `handle_click` for world editing. 
+### Post-Processing Filter (Noir Theme)
+The engine supports full-screen filters. The `world_surface` is rendered first, then a transformation is applied.
 
-### 📦 `editor` package
-| Script | Class | Logic / Pseudo-Code |
-| :--- | :--- | :--- |
-| `Camera.py`          | `EditorCamera`   | **Logic:** Coordinate mapping. `screen_to_world = (mouse_pos - offset) / zoom`. Essential for placing tiles correctly while zoomed. |
-| `CommandStack.py`    | `CommandStack`   | **Logic:** Undo/Redo. Stores `Command` objects. `undo()` calls `command.undo()` and moves it to a redo list. |
-| `UIComponents.py`    | `Button`, `Panel`| **Logic:** Event consumption. `handle_event` returns `True` if the mouse is within the component's rect, preventing clicks from "bleeding through" to the world. |
-
----
-
-## 📁 Data Schemas
-
-### Level JSON Structure
 ```python
-{
-    "metadata": { "theme": "nature_1", "parallax_intensity": 1.1, "parallax_y_offset": 50 },
-    "layers": {
-        "main": [ ["TILE_ID", "TILE_ID[layer:front]"], ... ], # 2D Grid
-        "entities": [ { "type": "BOSS_R", "x": 500, "y": 200, "properties": { "hp": 500 } } ]
-    }
-}
+# From src/main.py
+# 1. Draw all game elements to a dedicated surface
+self.world_surface.fill((0, 0, 0))
+self.draw_world(self.world_surface) 
+self.ui_manager.draw(self.world_surface)
+
+# 2. Apply filter if active in metadata
+final_view = self.world_surface
+if self.metadata.get("filters", {}).get("noir"):
+    final_view = pygame.transform.grayscale(self.world_surface)
+
+# 3. Blit result to screen
+self.screen.blit(final_view, (0, 0))
 ```
 
-### Registry JSON Structure
+### Manual Player Placement (Singleton START)
+The editor ensures only one player spawn exists by enforcing a singleton pattern for the `START` entity type.
+
 ```python
+# From tools/LevelEditor.py
+if self.selected_tile == "START":
+    # Remove any existing START entity before placing the new one
+    self.level_data["layers"]["entities"] = [e for e in self.level_data["layers"]["entities"] if e["type"] != "START"]
+```
+
+---
+
+## 🛠️ Editor Features
+
+- **Scrollable Item Grid:** The sidebar supports vertical scrolling via `MOUSEWHEEL` and uses `screen.set_clip()` for clean rendering.
+- **Settings Panel:** Dedicated screen for configuring themes, parallax intensity, and full-screen filters.
+- **Entity Previews:** The editor renders the actual sprite for all placed entities (Enemies, Weapons, Start points) instead of placeholders.
+
+---
+
+## 📁 Data Formats
+
+### Level JSON (`levels/*.json`)
+```json
 {
-    "items": {
-        "ID": {
-            "category": "Enemies",
-            "type": "entity",
-            "module": "src.game.entities.enemies.Bee",
-            "class": "Bee",
-            "asset": "path/to/img.png"
-        }
+    "metadata": { 
+        "theme": "nature_1", 
+        "parallax_intensity": 1.0,
+        "filters": { "noir": true }
+    },
+    "layers": {
+        "main": [ ["Concrete_tile", "-1"], ... ],
+        "entities": [ 
+            { "type": "START", "x": 100, "y": 200, "properties": {} },
+            { "type": "Pistol", "x": 300, "y": 200, "properties": {} }
+        ]
     }
 }
 ```

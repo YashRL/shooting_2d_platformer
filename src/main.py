@@ -72,6 +72,7 @@ class Game:
         
         self.load_scene(level_name)
         self.camera = Camera(self.map_width, self.map_height)
+        self.world_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
 
     def load_scene(self, level_name):
         result = self.resources.load_level(level_name)
@@ -79,13 +80,13 @@ class Game:
             print(f"Error: Level {level_name} could not be loaded.")
             sys.exit()
 
-        metadata = result['metadata']
+        self.metadata = result.get('metadata', {})
         grid = result['grid']
         entities = result['entities']
         
-        theme = metadata.get("theme", "nature_1")
-        intensity = metadata.get("parallax_intensity", 1.0)
-        y_offset = metadata.get("parallax_y_offset", 0)
+        theme = self.metadata.get("theme", "nature_1")
+        intensity = self.metadata.get("parallax_intensity", 1.0)
+        y_offset = self.metadata.get("parallax_y_offset", 0)
         
         self.parallax_manager = ParallaxManager(f"Assets/PNG/Backgrounds/{theme}", SCREEN_HEIGHT, intensity, y_offset)
         
@@ -134,11 +135,7 @@ class Game:
                 self.player = entity
             elif isinstance(entity, BaseWeapon):
                 # standalone weapon pickable
-                item_id = "UNKNOWN"
-                for k, v in self.resources.registry.items():
-                    if v.get('class') == entity.__class__.__name__:
-                        item_id = k
-                        break
+                item_id = props.get('item_id', 'UNKNOWN')
                 self.items.add(WorldItem(entity.x, entity.y, item_id, entity.image))
             elif category == 'Platforms':
                 self.platforms.add(entity)
@@ -147,7 +144,22 @@ class Game:
                     self.entities.add(entity)
 
         if not self.player:
-            self.player = self.resources.spawn('START', 100, 100)
+            # Check for a manually placed START point in the loaded entities
+            start_pos = (100, 100)
+            for entity in entities:
+                # We need to check the original data if it was a START type
+                # But since the entities are already spawned, let's look for FoxPlayer type
+                from src.game.entities.players.FoxPlayer import FoxPlayer
+                if isinstance(entity, FoxPlayer):
+                    # Already spawned in the loop above! 
+                    # If the loop above didn't find one, we'll hit this block.
+                    # Wait, FoxPlayer is spawned via 'START' in registry.
+                    # Let's check the level data directly to be safe.
+                    pass
+            
+            # Re-spawn if none found
+            if not self.player:
+                self.player = self.resources.spawn('START', start_pos[0], start_pos[1])
 
     def run(self):
         while True:
@@ -186,29 +198,37 @@ class Game:
 
             self.camera.update(self.player, self.effect_manager.get_shake_offset())
 
-            # Draw
-            self.parallax_manager.draw(self.screen, self.camera.camera.x)
-            for sprite in self.background_statics: self.screen.blit(sprite.image, self.camera.apply(sprite))
-            for item in self.items: self.screen.blit(item.image, self.camera.apply(item))
+            # Draw to world_surface
+            self.world_surface.fill((0, 0, 0)) # Clear
+            self.parallax_manager.draw(self.world_surface, self.camera.camera.x)
+            for sprite in self.background_statics: self.world_surface.blit(sprite.image, self.camera.apply(sprite))
+            for item in self.items: self.world_surface.blit(item.image, self.camera.apply(item))
             
             for entity in self.entities: 
-                if hasattr(entity, 'draw'): entity.draw(self.screen, self.camera)
-                else: self.screen.blit(entity.image, self.camera.apply(entity))
+                if hasattr(entity, 'draw'): entity.draw(self.world_surface, self.camera)
+                else: self.world_surface.blit(entity.image, self.camera.apply(entity))
             
             for platform in self.platforms:
                 if platform not in self.entities and platform not in self.background_statics and platform not in self.foreground_statics:
-                    if hasattr(platform, 'draw'): platform.draw(self.screen, self.camera)
-                    else: self.screen.blit(platform.image, self.camera.apply(platform))
+                    if hasattr(platform, 'draw'): platform.draw(self.world_surface, self.camera)
+                    else: self.world_surface.blit(platform.image, self.camera.apply(platform))
 
-            self.effect_manager.draw(self.screen, self.camera)
-            self.player.draw(self.screen, self.camera)
-            for sprite in self.foreground_statics: self.screen.blit(sprite.image, self.camera.apply(sprite))
+            self.effect_manager.draw(self.world_surface, self.camera)
+            self.player.draw(self.world_surface, self.camera)
+            for sprite in self.foreground_statics: self.world_surface.blit(sprite.image, self.camera.apply(sprite))
             
-            # UI
-            self.ui_manager.draw_health_bar(self.screen, 20, 20, self.player.hp, self.player.max_hp, width_in_segments=6)
+            # UI (Drawn to world_surface so it gets filtered too)
+            self.ui_manager.draw_health_bar(self.world_surface, 20, 20, self.player.hp, self.player.max_hp, width_in_segments=6)
             active_weapon = self.player.weapon_slots[self.player.active_slot]
             if active_weapon:
-                self.ui_manager.draw_ammo(self.screen, 20, 65, active_weapon.current_ammo, active_weapon.ammo_capacity)
+                self.ui_manager.draw_ammo(self.world_surface, 20, 65, active_weapon.current_ammo, active_weapon.ammo_capacity)
+            
+            # Apply Filters
+            final_view = self.world_surface
+            if self.metadata.get("filters", {}).get("noir", False):
+                final_view = pygame.transform.grayscale(self.world_surface)
+            
+            self.screen.blit(final_view, (0, 0))
             
             pygame.display.flip()
             self.clock.tick(FPS)

@@ -4,6 +4,7 @@ class BaseWeapon:
     def __init__(self, x, y, properties):
         self.x = x
         self.y = y
+        self.properties = properties
         self.name = properties.get('name', 'Unknown')
         self.damage = properties.get('damage', 1)
         self.fire_rate = properties.get('fire_rate', 500) # ms

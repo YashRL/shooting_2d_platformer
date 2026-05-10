@@ -210,6 +210,12 @@ class ResourceManager:
             properties = info.get('properties', {}).copy()
             properties.update(instance_props)
             properties.update(kwargs)
+            
+            # Inject critical registry info into properties
+            properties['item_id'] = actual_id
+            properties['asset'] = info.get('asset')
+            properties['category'] = info.get('category')
+            
             # Pass resources to the entity if it needs to spawn weapons/etc
             if 'resources' not in properties:
                 properties['resources'] = self

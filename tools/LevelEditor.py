@@ -57,6 +57,7 @@ class LevelEditor:
         self.current_tool = "stamp" # stamp, erase
         
         self.item_grid_y = 310
+        self.item_grid_scroll_y = 0
         self.setup_menu_ui()
         self.setup_ui()
         self.setup_settings_ui()
@@ -109,7 +110,7 @@ class LevelEditor:
 
         # Categories
         self.sidebar.add_child(Label(20, 235, "CATEGORIES:", font=pygame.font.SysFont("Segoe UI", 14, bold=True), color=GRAY))
-        cats = ["Tiles", "Enemies", "Props", "Weapons"]
+        cats = ["Tiles", "Enemies", "Players", "Weapons", "Props", "Platforms"]
         btn_w = (UI_WIDTH - 30) // 2
         for i, cat in enumerate(cats):
             col, row = i % 2, i // 2
@@ -134,7 +135,20 @@ class LevelEditor:
         self.offset_input = InputBox((center_x + 50, 290, 200, 40), str(meta.get("parallax_y_offset", 0)), "Y-Offset:")
         self.settings_panel.add_child(self.intensity_input)
         self.settings_panel.add_child(self.offset_input)
-        self.settings_panel.add_child(Button((center_x - 100, 500, 200, 50), "APPLY & BACK", self.apply_settings, color=UI_ACCENT))
+        
+        # Filters
+        self.settings_panel.add_child(Label(center_x + 50, 370, "FILTERS:", font=pygame.font.SysFont("Segoe UI", 20, bold=True), color=WHITE))
+        noir_active = meta.get("filters", {}).get("noir", False)
+        self.settings_panel.add_child(Button((center_x + 50, 410, 200, 40), f"NOIR: {'ON' if noir_active else 'OFF'}", self.toggle_noir, color=UI_ACCENT if noir_active else UI_GRAY))
+        
+        self.settings_panel.add_child(Button((center_x - 100, 550, 200, 50), "APPLY & BACK", self.apply_settings, color=UI_ACCENT))
+
+    def toggle_noir(self):
+        meta = self.level_data["metadata"]
+        if "filters" not in meta: meta["filters"] = {}
+        meta["filters"]["noir"] = not meta["filters"].get("noir", False)
+        print(f"Noir filter: {meta['filters']['noir']}")
+        self.setup_settings_ui()
 
     def set_tool(self, tool): self.current_tool = tool; self.setup_ui()
     def set_layer(self, layer): self.selected_layer = layer; self.setup_ui()
@@ -183,28 +197,39 @@ class LevelEditor:
             self.cols = len(self.level_data["layers"]["main"][0])
 
     def draw_item_grid(self):
+        # Define the clipping region for the item grid
+        grid_start_y = 375
+        clip_rect = pygame.Rect(0, grid_start_y, UI_WIDTH, SCREEN_HEIGHT - grid_start_y)
+        self.screen.set_clip(clip_rect)
+        
         items, sub_cats = [], []
+        scroll_y = self.item_grid_scroll_y
+        current_y = grid_start_y + scroll_y
+        
         if self.selected_category == "Tiles":
+            # 1. Draw Sub-Categories
             for k, v in self.resources.registry.items():
                 if v.get('type') == 'static' and v.get('category') not in sub_cats: sub_cats.append(v.get('category'))
             sub_cats = sorted(sub_cats)
             btn_w = (UI_WIDTH - 40) // 3
             for i, sc in enumerate(sub_cats):
                 col, row = i % 3, i // 3
-                rect = pygame.Rect(10 + col * (btn_w + 10), 330 + row * 25, btn_w, 20)
+                rect = pygame.Rect(10 + col * (btn_w + 10), current_y + row * 25, btn_w, 20)
                 color = UI_HIGHLIGHT if self.selected_sub_category == sc else UI_GRAY
                 pygame.draw.rect(self.screen, color, rect, border_radius=3)
                 txt = pygame.font.SysFont("Segoe UI", 10).render(sc.upper()[:10], True, BLACK if color == UI_HIGHLIGHT else WHITE)
                 self.screen.blit(txt, txt.get_rect(center=rect.center))
                 if rect.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]: self.selected_sub_category = sc
-            self.item_grid_y = 330 + ((len(sub_cats) + 2) // 3) * 25 + 10
+            
+            # Advance Y after sub-categories
+            current_y += ((len(sub_cats) + 2) // 3) * 25 + 10
             for k, v in self.resources.registry.items():
                 if v.get('category') == self.selected_sub_category: items.append(k)
         else:
-            self.item_grid_y = 330
             for k, v in self.resources.registry.items():
                 if v.get('category') == self.selected_category: items.append(k)
         
+        # 2. Draw Items
         items = sorted(list(set(items)))
         cols, padding = 4, 10
         box_size = (UI_WIDTH - (cols + 1) * padding) // cols
@@ -212,14 +237,15 @@ class LevelEditor:
         m_clicked = pygame.mouse.get_pressed()[0]
         for i, item_id in enumerate(items):
             col, row = i % cols, i // cols
-            x, y = padding + col * (box_size + padding), self.item_grid_y + row * (box_size + padding)
-            if y > SCREEN_HEIGHT - 60: break
+            x, y = padding + col * (box_size + padding), current_y + row * (box_size + padding)
             rect = pygame.Rect(x, y, box_size, box_size)
             pygame.draw.rect(self.screen, (20, 20, 20), rect, border_radius=3)
             img = self.resources.get_image(item_id)
             if img: self.screen.blit(pygame.transform.scale(img, (box_size, box_size)), (x, y))
             if self.selected_tile == item_id: pygame.draw.rect(self.screen, UI_HIGHLIGHT, rect, 2, border_radius=3)
             if rect.collidepoint(mx, my) and m_clicked: self.selected_tile = item_id
+            
+        self.screen.set_clip(None) # Reset clipping
 
     def play_level(self):
         self.save_level()
@@ -238,7 +264,14 @@ class LevelEditor:
             if event.type == pygame.MOUSEMOTION:
                 self.camera.update_panning(event.pos)
                 if pygame.mouse.get_pressed()[0]: self.handle_click(event.pos)
-            if event.type == pygame.MOUSEWHEEL: self.camera.zoom(event.y * 0.1, pygame.mouse.get_pos())
+            if event.type == pygame.MOUSEWHEEL:
+                if pygame.mouse.get_pos()[0] < UI_WIDTH:
+                    # Scroll sidebar
+                    self.item_grid_scroll_y = min(0, self.item_grid_scroll_y + event.y * 20)
+                else:
+                    # Zoom map
+                    self.camera.zoom(event.y * 0.1, pygame.mouse.get_pos())
+
             if event.type == pygame.KEYDOWN and event.key == pygame.K_z and (pygame.key.get_mods() & pygame.KMOD_CTRL): self.command_stack.undo()
 
     def handle_click(self, pos):
@@ -258,6 +291,10 @@ class LevelEditor:
                 old = grid[gy][gx]
                 if old != item: self.command_stack.push(PlaceTileCommand(grid, gy, gx, old, item))
             else:
+                # Special Case: Only one START (Player) allowed
+                if self.selected_tile == "START":
+                    self.level_data["layers"]["entities"] = [e for e in self.level_data["layers"]["entities"] if e["type"] != "START"]
+                
                 exists = any(e['x'] == gx*TILE_SIZE and e['y'] == gy*TILE_SIZE for e in self.level_data["layers"]["entities"])
                 if not exists:
                     ent = {"type": self.selected_tile, "x": gx*TILE_SIZE, "y": gy*TILE_SIZE, "properties": {}}
@@ -279,7 +316,17 @@ class LevelEditor:
                     if img: self.screen.blit(pygame.transform.scale(img, (screen_rect.width, screen_rect.height)), screen_rect)
                 pygame.draw.rect(self.screen, (60, 60, 70), screen_rect, 1)
         for e in self.level_data["layers"]["entities"]:
-            pygame.draw.rect(self.screen, UI_HIGHLIGHT, self.camera.apply_rect(pygame.Rect(e['x'], e['y'], TILE_SIZE, TILE_SIZE)), 2)
+            rect = pygame.Rect(e['x'], e['y'], TILE_SIZE, TILE_SIZE)
+            screen_rect = self.camera.apply_rect(rect)
+            if not self.screen.get_rect().colliderect(screen_rect): continue
+            
+            # Draw actual sprite
+            img = self.resources.get_image(e['type'])
+            if img:
+                self.screen.blit(pygame.transform.scale(img, (screen_rect.width, screen_rect.height)), screen_rect)
+            
+            # Keep selection highlight
+            pygame.draw.rect(self.screen, UI_HIGHLIGHT, screen_rect, 2)
         self.sidebar.draw(self.screen); self.draw_item_grid(); pygame.display.flip()
 
     def run(self):
