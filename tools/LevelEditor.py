@@ -98,8 +98,9 @@ class LevelEditor:
         
         # Tools
         self.sidebar.add_child(Label(20, 125, "TOOLS:", font=pygame.font.SysFont("Segoe UI", 14, bold=True), color=GRAY))
-        self.sidebar.add_child(Button((10, 145, 100, 25), "STAMP", lambda: self.set_tool("stamp"), color=UI_ACCENT if self.current_tool == "stamp" else UI_GRAY))
-        self.sidebar.add_child(Button((120, 145, 100, 25), "ERASE", lambda: self.set_tool("erase"), color=UI_ACCENT if self.current_tool == "erase" else UI_GRAY))
+        self.sidebar.add_child(Button((10, 145, 70, 25), "STAMP", lambda: self.set_tool("stamp"), color=UI_ACCENT if self.current_tool == "stamp" else UI_GRAY))
+        self.sidebar.add_child(Button((90, 145, 70, 25), "ERASE", lambda: self.set_tool("erase"), color=UI_ACCENT if self.current_tool == "erase" else UI_GRAY))
+        self.sidebar.add_child(Button((170, 145, 70, 25), "SELECT", lambda: self.set_tool("select"), color=UI_ACCENT if self.current_tool == "select" else UI_GRAY))
 
         # Layers
         self.sidebar.add_child(Label(20, 180, "LAYERS:", font=pygame.font.SysFont("Segoe UI", 14, bold=True), color=GRAY))
